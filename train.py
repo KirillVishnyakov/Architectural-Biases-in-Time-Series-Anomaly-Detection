@@ -4,7 +4,7 @@ import torch
 import copy
 
 class EarlyStopping:
-    def __init__(self, patience=4, min_delta=0.001, mode='min'):
+    def __init__(self, patience=10, min_delta=0.001, mode='min'):
         self.patience = patience
         self.min_delta = min_delta
         self.mode = mode
