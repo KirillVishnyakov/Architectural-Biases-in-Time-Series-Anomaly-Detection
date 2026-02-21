@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch
 
 
-def train_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs, ):
+def train_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs):
     num_batches = len(train_dataset) // batch_size
     train_mse_array = np.zeros(num_epochs)
     test_mse_array = np.zeros(num_epochs)
