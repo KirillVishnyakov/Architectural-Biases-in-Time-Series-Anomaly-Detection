@@ -4,7 +4,7 @@ import torch
 import copy
 
 class EarlyStopping:
-    def __init__(self, patience=4, min_delta=0.01, mode='min'):
+    def __init__(self, patience=4, min_delta=0.001, mode='min'):
         self.patience = patience
         self.min_delta = min_delta
         self.mode = mode
@@ -65,4 +65,4 @@ def train_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num
                 break
             if test_mse_array[epoch] < earlyStopper.best_score + earlyStopper.min_delta:
                 best_model_wts = copy.deepcopy(model.state_dict())
-    return best_model_wts, train_mse_array, test_mse_array
+    return best_model_wts, train_mse_array[:epoch], test_mse_array[:epoch]
