@@ -24,6 +24,6 @@ def train_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num
         with torch.no_grad():
             train_mse_array[epoch] = loss_fn(model(train_dataset.X), train_dataset.y).item()
             test_mse_array[epoch] = loss_fn(model(test_dataset.X), test_dataset.y).item()
-            print(f"experiment: {exp_name}. epoch {epoch}, train: MSE {train_mse_array[epoch]:.4f} test MSE: {test_mse_array[epoch]:.4f}")
+            print(f"| experiment: {exp_name} | epoch {epoch}, train: MSE {train_mse_array[epoch]:.4f}, test MSE: {test_mse_array[epoch]:.4f}")
     
     return model, train_mse_array, test_mse_array
