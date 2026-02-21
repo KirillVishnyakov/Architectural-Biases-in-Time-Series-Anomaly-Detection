@@ -3,10 +3,12 @@ import torch.nn as nn
 import torch
 
 
-def train_lstm(model, train_dataset, test_dataset, optimizer, batch_size, num_epochs, loss_fn):
+def train_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs, ):
     num_batches = len(train_dataset) // batch_size
     train_mse_array = np.zeros(num_epochs)
     test_mse_array = np.zeros(num_epochs)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+    loss_fn = nn.MSELoss()
 
     for epoch in range(num_epochs):
         model.train()
@@ -22,4 +24,6 @@ def train_lstm(model, train_dataset, test_dataset, optimizer, batch_size, num_ep
         with torch.no_grad():
             train_mse_array[epoch] = loss_fn(model(train_dataset.X), train_dataset.y).item()
             test_mse_array[epoch] = loss_fn(model(test_dataset.X), test_dataset.y).item()
-            print("epoch %d, train: MSE %.4f test MSE: %.4f" % (epoch, train_mse_array[epoch], test_mse_array[epoch]))
+            print(f"experiment: {exp_name}. epoch {epoch}, train: MSE {train_mse_array[epoch]:.4f} test MSE: {test_mse_array[epoch]:.4f}")
+    
+    return model, train_mse_array, test_mse_array
