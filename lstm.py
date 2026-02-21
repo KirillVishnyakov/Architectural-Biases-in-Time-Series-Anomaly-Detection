@@ -11,7 +11,13 @@ from sklearn.decomposition import PCA
 class myLSTM(nn.Module):
     def __init__(self, hidden_size, dropout = 0.0, num_layers = 1, input_size = 17, output_size = 17):
         super().__init__()
-        self.LSTM = nn.LSTM(input_size, hidden_size, batch_first=True, dropout = dropout, num_layers = num_layers)
+
+        #To suppress warning
+        rnn_dropout = dropout
+        if dropout != 0.0 and num_layers == 1: rnn_dropout = 0
+
+        self.LSTM = nn.LSTM(input_size, hidden_size, batch_first=True, dropout = rnn_dropout, num_layers = num_layers)
+        
         self.dropout = nn.Dropout(dropout)
         self.linear = nn.Linear(hidden_size, output_size)
 
