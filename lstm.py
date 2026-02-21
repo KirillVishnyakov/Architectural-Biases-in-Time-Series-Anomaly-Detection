@@ -9,9 +9,9 @@ from sklearn.decomposition import PCA
 
 
 class myLSTM(nn.Module):
-    def __init__(self, input_size, hidden_size, out_size):
+    def __init__(self, input_size, hidden_size, out_size, dropout = 0.0, num_layers = 1):
         super().__init__()
-        self.LSTM = nn.LSTM(input_size, hidden_size, batch_first=True)
+        self.LSTM = nn.LSTM(input_size, hidden_size, batch_first=True, dropout = dropout, num_layers = num_layers)
         self.linear = nn.Linear(hidden_size, out_size)
 
     def forward(self, input):
@@ -20,3 +20,4 @@ class myLSTM(nn.Module):
         last_timestep = output[:, -1, :]
         x = self.linear(last_timestep)
         return x
+
