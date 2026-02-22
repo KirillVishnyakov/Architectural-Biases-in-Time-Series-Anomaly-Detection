@@ -35,16 +35,16 @@ class LrPlateauScheduler:
         self.best_score = None
         self.counter = 0
 
-        def __call__(self, score):
-            improved = score < self.best_score - self.min_delta
-            if improved:
-                self.best_score = score
-                self.counter = 0
-            else:
-                self.counter += 1
-                if self.counter >= self.patience:
-                    return True
-            return False
+    def __call__(self, score):
+        improved = score < self.best_score - self.min_delta
+        if improved:
+            self.best_score = score
+            self.counter = 0
+        else:
+            self.counter += 1
+            if self.counter >= self.patience:
+                return True
+        return False
 
 def train_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs):
     num_batches = len(train_dataset) // batch_size
