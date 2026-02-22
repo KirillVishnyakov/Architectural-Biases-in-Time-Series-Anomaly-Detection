@@ -34,6 +34,7 @@ class LrPlateauScheduler:
         self.patience = patience
         self.best_score = None
         self.counter = 0
+        self.min_delta = min_delta
 
     def __call__(self, score):
         improved = score < self.best_score - self.min_delta
