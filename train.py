@@ -37,6 +37,9 @@ class LrPlateauScheduler:
         self.min_delta = min_delta
 
     def __call__(self, score):
+        if self.best_score is None:
+            self.best_score = score
+            return False
         improved = score < self.best_score - self.min_delta
         if improved:
             self.best_score = score
