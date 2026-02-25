@@ -1,0 +1,1 @@
+# These notebooks are meant to be ran in kaggle/colab, and their model weight outputs .pth moved to saved_model_weights folder in the root
