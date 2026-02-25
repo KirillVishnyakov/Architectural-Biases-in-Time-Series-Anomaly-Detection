@@ -88,12 +88,13 @@ def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_e
             train_mse_array[epoch] = loss_fn(model(train_dataset.X), train_dataset.y).item()
             test_mse_array[epoch] = loss_fn(model(test_dataset.X), test_dataset.y).item()
             if (epoch + 1) % 10 == 0:
-                print(f"| experiment: {exp_name} | epoch {epoch}, train: MSE {train_mse_array[epoch]:.4f}, test MSE: {test_mse_array[epoch]:.4f}")
+                print(f"| experiment: {exp_name} | epoch {epoch + 1}, train: MSE {train_mse_array[epoch]:.4f}, test MSE: {test_mse_array[epoch]:.4f}")
             if LrPlateauSchedule(test_mse_array[epoch]):
                 current_lr = optimizer.param_groups[0]['lr']
                 optimizer.param_groups[0]['lr'] = current_lr * 0.5
                 print(f"update LR: {current_lr} -> {optimizer.param_groups[0]['lr']}")
             if earlyStopper(test_mse_array[epoch]):
+                print(f"| experiment: {exp_name} | epoch {epoch + 1}, train: MSE {train_mse_array[epoch]:.4f}, test MSE: {test_mse_array[epoch]:.4f}")
                 print("Stopping early")
                 break
             if test_mse_array[epoch] < earlyStopper.best_score + earlyStopper.min_delta:
