@@ -52,9 +52,13 @@ class LrPlateauScheduler:
         return False
 
 def initialize_weights_xavier(m):
-    nn.init.xavier_uniform_(m.weight.data)
-    if m.bias is not None:
-        nn.init.zeros_(m.bias.data)
+    for name, param in m.named_parameters():
+        if 'weight_ih' in name:
+            nn.init.xavier_uniform_(param.data)
+        elif 'weight_hh' in name:
+            nn.init.xavier_uniform_(param.data)
+        elif 'bias' in name:
+            nn.init.constant_(param.data, 0)
 
 def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs):
     num_batches = len(train_dataset) // batch_size
