@@ -47,10 +47,12 @@ class LrPlateauScheduler:
         else:
             self.counter += 1
             if self.counter >= self.patience:
+                self.counter = 0
                 return True
         return False
 
-def train_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs):
+#
+def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs):
     num_batches = len(train_dataset) // batch_size
     train_mse_array = np.zeros(num_epochs)
     test_mse_array = np.zeros(num_epochs)

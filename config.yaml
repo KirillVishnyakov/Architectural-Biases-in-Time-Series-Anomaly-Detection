@@ -1,4 +1,4 @@
-experiment_name: lstm_base
+experiment_name: noName
 
 model:
   hidden_size: 17
