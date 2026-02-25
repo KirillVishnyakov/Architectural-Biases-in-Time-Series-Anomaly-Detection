@@ -81,8 +81,6 @@ def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_e
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            print("1 step")
-            return None, None, None
 
         model.eval()  
         with torch.no_grad():
