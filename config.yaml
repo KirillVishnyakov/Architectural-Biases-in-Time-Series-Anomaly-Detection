@@ -2,10 +2,9 @@ experiment_name: noName
 
 model:
   hidden_size: 17
-  dropout: 0.0
   num_layers: 1
 
 training:
   lr: 0.001
   batch_size: 10
-  num_epochs: 30
+  num_epochs: 70

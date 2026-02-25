@@ -51,11 +51,17 @@ class LrPlateauScheduler:
                 return True
         return False
 
-#
+def initialize_weights_xavier(m):
+    nn.init.xavier_uniform_(m.weight.data)
+    if m.bias is not None:
+        nn.init.zeros_(m.bias.data)
+
 def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs):
     num_batches = len(train_dataset) // batch_size
     train_mse_array = np.zeros(num_epochs)
     test_mse_array = np.zeros(num_epochs)
+
+    model.apply(initialize_weights_xavier)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
     loss_fn = nn.MSELoss()
     earlyStopper = EarlyStopping()
@@ -77,8 +83,8 @@ def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_e
             
             train_mse_array[epoch] = loss_fn(model(train_dataset.X), train_dataset.y).item()
             test_mse_array[epoch] = loss_fn(model(test_dataset.X), test_dataset.y).item()
-
-            print(f"| experiment: {exp_name} | epoch {epoch}, train: MSE {train_mse_array[epoch]:.4f}, test MSE: {test_mse_array[epoch]:.4f}")
+            if (epoch + 1) % 10 == 0:
+                print(f"| experiment: {exp_name} | epoch {epoch}, train: MSE {train_mse_array[epoch]:.4f}, test MSE: {test_mse_array[epoch]:.4f}")
             if LrPlateauSchedule(test_mse_array[epoch]):
                 current_lr = optimizer.param_groups[0]['lr']
                 optimizer.param_groups[0]['lr'] = current_lr * 0.5
