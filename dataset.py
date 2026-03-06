@@ -1,18 +1,16 @@
 import pandas as pd
-import numpy as np
-import torch.nn as nn
 import torch
 import torch.utils.data as data
 from sklearn.preprocessing import RobustScaler
 
 
-
-class myDataset(data.Dataset):
-    def __init__(self, device, window_size, train = True):
+# Stride of 1 is implicitly implied. Window size can be set.
+class LSTM_tuning_DataSet(data.Dataset):
+    def __init__(self, device, window_size, start = 0, end = 90000):
         self.dataset = pd.read_csv("/kaggle/input/datasets/kirillvishnyakov/cats-dataset/data.csv").drop(["y", "category", "timestamp"], axis = 1)
         self.normalized_dataset = RobustScaler().fit_transform(self.dataset)
 
-        start, end = (0, 90000) if train else (90000, 100000)
+        
         self.clean_data =  torch.from_numpy(self.normalized_dataset[start: end])
         
         self.X, self.y = torch.zeros((end - start - window_size, window_size, 17)), torch.zeros((end - start - window_size, 17))
