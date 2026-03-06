@@ -84,9 +84,17 @@ def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_e
 
         model.eval()  
         with torch.no_grad():
-            
-            train_mse_array[epoch] = loss_fn(model(train_dataset.X), train_dataset.y).item()
-            test_mse_array[epoch] = loss_fn(model(test_dataset.X), test_dataset.y).item()
+            train_X_chunks, test_X_chunks = torch.chunk(train_dataset.X, 10, dim=0), torch.chunk(test_dataset.X, 10, dim=0)
+            train_y_chunks, test_y_chunks = torch.chunk(train_dataset.y, 10, dim=0), torch.chunk(test_dataset.y, 10, dim=0)
+
+            train_eval_loss, test_eval_loss = 0, 0
+
+            for k in range(10):
+                train_eval_loss += loss_fn(model(train_X_chunks[k]), train_y_chunks[k]).item() * len(train_y_chunks[k])/len(train_dataset.X)
+                test_eval_loss += loss_fn(model(test_X_chunks[k]), test_y_chunks[k]).item() * len(test_y_chunks[k])/len(test_dataset.X)
+
+            train_mse_array[epoch] = train_eval_loss
+            test_mse_array[epoch] = test_eval_loss
             if (epoch + 1) % 10 == 0:
                 print(f"| experiment: {exp_name} | epoch {epoch + 1}, train: MSE {train_mse_array[epoch]:.4f}, test MSE: {test_mse_array[epoch]:.4f}")
             if LrPlateauSchedule(test_mse_array[epoch]):
