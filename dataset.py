@@ -11,7 +11,7 @@ class LSTM_tuning_DataSet(data.Dataset):
         self.normalized_dataset = RobustScaler().fit_transform(self.dataset)
 
         
-        self.clean_data =  torch.from_numpy(self.normalized_dataset[start: end])
+        self.clean_data =  torch.from_numpy(self.normalized_dataset)
         
         self.X, self.y = torch.zeros((end - start - window_size, window_size, 17)), torch.zeros((end - start - window_size, 17))
         for i in range(len(self.clean_data) - window_size):
