@@ -7,7 +7,7 @@ from sklearn.preprocessing import RobustScaler
 # Stride of 1 is implicitly implied. Window size can be set.
 class LSTM_tuning_DataSet(data.Dataset):
     def __init__(self, device, window_size, start = 0, end = 90000):
-        self.dataset = pd.read_csv("/kaggle/input/datasets/kirillvishnyakov/cats-dataset/data.csv").drop(["y", "category", "timestamp"], axis = 1)
+        self.dataset = pd.read_csv("/kaggle/input/datasets/kirillvishnyakov/cats-dataset/data.csv", skiprows=start, nrows=end).drop(["y", "category", "timestamp"], axis = 1)
         self.normalized_dataset = RobustScaler().fit_transform(self.dataset)
 
         
