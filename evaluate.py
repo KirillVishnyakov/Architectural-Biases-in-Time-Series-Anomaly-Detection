@@ -15,4 +15,5 @@ def evaluate_lstm_threshold(model, treshold, forecasting_dataset):
     if TP == 0 or FP == 0: return 0, 0, 0
     recall = TP/forecasting_dataset.total_anomalies
     precision = TP/(TP + FP)
+    print(f"| evaluation_treshold: {treshold} | recall {recall}, precision {precision}, F1 {2 * (precision * recall)/(precision + recall)}")
     return precision, recall, 2 * (precision * recall)/(precision + recall)

@@ -9,6 +9,7 @@ from sklearn.preprocessing import RobustScaler
 class LSTM_Dataset(data.Dataset):
     def __init__(self, device, window_size, start = 0, end = 90000, train = True):
         self.train = train
+        self.window_size = window_size
         if self.train:
             self.dataset = pd.read_csv("/kaggle/input/datasets/kirillvishnyakov/cats-dataset/data.csv", skiprows=range(1, start+1), nrows=end - start).drop(["y", "category", "timestamp"], axis = 1)
         else:
