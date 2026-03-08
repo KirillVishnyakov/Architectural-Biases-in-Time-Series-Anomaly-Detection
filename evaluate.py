@@ -4,8 +4,8 @@ def evaluate_lstm_threshold(model, treshold, forecasting_dataset):
     TP, FP = 0, 0
     for idx in range(len(forecasting_dataset)):
         X, Y, label = forecasting_dataset[idx]
-        y_pred = model(X).unsqueeze(dim = 1)
-        error = torch.linalg.norm(Y.unsqueeze(dim = 1) - y_pred).item()
+        y_pred = model(X.unsqueeze(dim = 0))
+        error = torch.linalg.norm(Y - y_pred.squeeze(0)).item()
 
         if error > treshold and label == 1: 
             TP+=1 

@@ -14,6 +14,7 @@ class myLSTM(nn.Module):
     def forward(self, input):
         output, (h_n, c_n) = self.LSTM(input)
 
+        #Last output of the lstm represents the next timestep for each batch.
         last_timestep = output[:, -1, :]
         x = self.linear(last_timestep)
         return x
