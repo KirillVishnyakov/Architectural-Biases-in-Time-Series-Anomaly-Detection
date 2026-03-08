@@ -75,8 +75,8 @@ def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_e
         model.train()
         for batch_idx in range(num_batches):
             window_batch = train_dataset[batch_idx * batch_size: (batch_idx + 1)*batch_size]
-            y_pred_batch = model(window_batch[0]).unsqueeze(dim = 1)
-            loss = loss_fn(window_batch[1].unsqueeze(dim = 1), y_pred_batch)
+            y_pred_batch = model(window_batch[0])
+            loss = loss_fn(window_batch[1], y_pred_batch)
         
             optimizer.zero_grad()
             loss.backward()
