@@ -2,11 +2,7 @@
 import torch
 import numpy as np
 
-def smooth_scores(scores, window=5):
-    kernel = np.ones(window) / window
-    return np.convolve(scores, kernel, mode='same')
-
-def evaluate_lstm_threshold(model, threshold, forecasting_dataset, smoothing_window=1):
+def evaluate_lstm_threshold(model, threshold, forecasting_dataset):
     scores = []
     labels = []
 
@@ -19,8 +15,6 @@ def evaluate_lstm_threshold(model, threshold, forecasting_dataset, smoothing_win
 
     scores = np.array(scores)
     labels = np.array(labels)
-    if smoothing_window > 1:
-        scores = smooth_scores(scores, smoothing_window)
 
     TP = np.sum((scores > threshold) & (labels == 1))
     FP = np.sum((scores > threshold) & (labels == 0))
@@ -30,6 +24,6 @@ def evaluate_lstm_threshold(model, threshold, forecasting_dataset, smoothing_win
     recall = TP/forecasting_dataset.total_anomalies
     precision = TP/(TP + FP)
 
-    print(f"| evaluation_threshold: {threshold} | window {smoothing_window} | recall {recall}, precision {precision}, F1 {2 * (precision * recall)/(precision + recall)}")
+    print(f"| evaluation_threshold: {threshold} | recall {recall}, precision {precision}, F1 {2 * (precision * recall)/(precision + recall)}")
 
-    return precision, recall, 2 * (precision * recall)/(precision + recall)
+    return scores, labels, precision, recall, 2 * (precision * recall)/(precision + recall)
