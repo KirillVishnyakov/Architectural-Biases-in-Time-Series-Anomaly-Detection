@@ -15,6 +15,7 @@ class LSTM_Dataset(data.Dataset):
         else:
             self.dataset = pd.read_csv("/kaggle/input/datasets/kirillvishnyakov/cats-dataset/data.csv", skiprows=range(1, start+1), nrows=end - start).drop(["timestamp"], axis = 1)
             self.labels = self.dataset["y"].values
+            self.categories = self.dataset["category"].values
             self.total_anomalies = np.sum(self.labels == 1)
             self.dataset = self.dataset.drop(["y", "category"], axis = 1)
 
@@ -38,6 +39,7 @@ class LSTM_Dataset(data.Dataset):
             return self.X[idx], self.y[idx]
         else: 
             label = self.labels[idx + self.window_size]
-            return self.X[idx], self.y[idx], label
+            category = self.categories[idx + self.window_size]
+            return self.X[idx], self.y[idx], label, category
 
 
