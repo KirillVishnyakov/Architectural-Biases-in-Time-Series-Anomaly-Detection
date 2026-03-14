@@ -2,6 +2,7 @@ import numpy as np
 import torch.nn as nn
 import torch
 import copy
+from tqdm.notebook import tqdm
 
 class EarlyStopping:
     def __init__(self, patience=10, min_delta=0.0001, mode='min'):
@@ -70,15 +71,16 @@ def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_e
     loss_fn = nn.MSELoss()
     earlyStopper = EarlyStopping()
     LrPlateauSchedule = LrPlateauScheduler()
-
-    for epoch in range(num_epochs):
+    epoch_bar = tqdm(range(num_epochs), desc=exp_name, leave=False)
+    for epoch in epoch_bar:
         model.train()
-        for batch_idx in range(num_batches):
+        batch_bar = tqdm(range(num_batches), desc="batches", leave=False)
+        for batch_idx in batch_bar:
             window_batch = train_dataset[batch_idx * batch_size: (batch_idx + 1)*batch_size]
+            optimizer.zero_grad()
             y_pred_batch = model(window_batch[0])
             loss = loss_fn(window_batch[1], y_pred_batch)
         
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
@@ -96,7 +98,7 @@ def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_e
             train_mse_array[epoch] = train_eval_loss
             test_mse_array[epoch] = test_eval_loss
             if (epoch + 1) % 10 == 0:
-                print(f"| experiment: {exp_name} | epoch {epoch + 1}, train: MSE {train_mse_array[epoch]:.4f}, test MSE: {test_mse_array[epoch]:.4f}")
+                epoch_bar.set_postfix(train=f"{train_mse_array[epoch]:.4f}", test=f"{test_mse_array[epoch]:.4f}")
             if LrPlateauSchedule(test_mse_array[epoch]):
                 current_lr = optimizer.param_groups[0]['lr']
                 optimizer.param_groups[0]['lr'] = current_lr * 0.5
