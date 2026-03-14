@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 from typing import List
 
-class short_window_LSTM(nn.Module):
+class LSTMBaseline(nn.Module):
     def __init__(self, hidden_size, num_layers = 1, input_size = 17, output_size = 17, dropout = 0.0):
         super().__init__()
 
