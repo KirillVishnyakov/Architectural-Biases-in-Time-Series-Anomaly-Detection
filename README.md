@@ -8,7 +8,7 @@ dataset, with a focus on per-anomaly-class detection performance.
 
 ## Structure
 
-\```
+```
 notebooks/
 ├── tuning/
 │   ├── tuning_LSTM_short.ipynb
@@ -27,4 +27,4 @@ notebooks/
     ├── LSTM_AE_results.csv
     └── transformer_results.csv
 
-\```
+```
