@@ -96,7 +96,7 @@ def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_e
             train_mse_array[epoch] = train_eval_loss
             test_mse_array[epoch] = test_eval_loss
             if (epoch + 1) % 10 == 0:
-                print(f"|{exp_name}| {train_mse_array[epoch]:.4f}", test=f"{test_mse_array[epoch]:.4f}")
+                print(f"|{exp_name}| train = {train_mse_array[epoch]:.4f}, test= {test_mse_array[epoch]:.4f}")
             if LrPlateauSchedule(test_mse_array[epoch]):
                 current_lr = optimizer.param_groups[0]['lr']
                 optimizer.param_groups[0]['lr'] = current_lr * 0.5
