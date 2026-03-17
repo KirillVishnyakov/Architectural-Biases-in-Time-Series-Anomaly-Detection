@@ -38,25 +38,27 @@ def lstm_layer_forward(
     c_t = torch.zeros(batch_size, hidden_size, device=layer_input.device)
     layer_output: List[torch.Tensor] = []
 
+
+    """
+    The following code does the exact same thing as:
+    i = torch.sigmoid(x @ Wii.T + bii + h_t @ Whi.T + bhi)
+    f = torch.sigmoid(x @ Wif.T + bif + h_t @ Whf.T + bhf)
+    g = torch.tanh(x @ Wig.T + big + h_t @ Whg.T + bhg)
+    if self.training:
+        masked_g = mask * g
+    else:
+        masked_g = g
+    o = torch.sigmoid(x @ Wio.T + bio + h_t @ Who.T + bho)
+    c_t = f * c_t + i * masked_g
+    h_t = o * torch.tanh(c_t)
+    layer_output.append(h_t)
+    
+    """
     # precompute input projection for all timesteps at once [batch, seq, 4*hidden]
     input_proj = layer_input @ weight_ih.T + bias_ih
 
     for t in range(layer_input.shape[1]):
-        """
-        The following code does the exact same thing as:
-        i = torch.sigmoid(x @ Wii.T + bii + h_t @ Whi.T + bhi)
-        f = torch.sigmoid(x @ Wif.T + bif + h_t @ Whf.T + bhf)
-        g = torch.tanh(x @ Wig.T + big + h_t @ Whg.T + bhg)
-        if self.training:
-            masked_g = mask * g
-        else:
-            masked_g = g
-        o = torch.sigmoid(x @ Wio.T + bio + h_t @ Who.T + bho)
-        c_t = f * c_t + i * masked_g
-        h_t = o * torch.tanh(c_t)
-        layer_output.append(h_t)
-        
-        """
+
         gates = input_proj[:, t, :] + h_t @ weight_hh.T + bias_hh
         i, f, g, o = gates.chunk(4, dim=1)
         i, f, o = torch.sigmoid(i), torch.sigmoid(f), torch.sigmoid(o)

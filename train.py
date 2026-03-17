@@ -61,7 +61,7 @@ def initialize_weights_xavier(m):
         elif 'bias' in name:
             nn.init.constant_(param.data, 0)
 
-def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs):
+def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs, chunks = 10):
     num_batches = len(train_dataset) // batch_size
     train_mse_array = np.zeros(num_epochs)
     test_mse_array = np.zeros(num_epochs)
@@ -86,12 +86,12 @@ def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_e
 
         model.eval()  
         with torch.no_grad():
-            train_X_chunks, test_X_chunks = torch.chunk(train_dataset.X, 10, dim=0), torch.chunk(test_dataset.X, 10, dim=0)
-            train_y_chunks, test_y_chunks = torch.chunk(train_dataset.y, 10, dim=0), torch.chunk(test_dataset.y, 10, dim=0)
+            train_X_chunks, test_X_chunks = torch.chunk(train_dataset.X, chunks, dim=0), torch.chunk(test_dataset.X, chunks, dim=0)
+            train_y_chunks, test_y_chunks = torch.chunk(train_dataset.y, chunks, dim=0), torch.chunk(test_dataset.y, chunks, dim=0)
 
             train_eval_loss, test_eval_loss = 0, 0
 
-            for k in range(10):
+            for k in range(chunks):
                 train_eval_loss += loss_fn(model(train_X_chunks[k]), train_y_chunks[k]).item() * len(train_y_chunks[k])/len(train_dataset.X)
                 test_eval_loss += loss_fn(model(test_X_chunks[k]), test_y_chunks[k]).item() * len(test_y_chunks[k])/len(test_dataset.X)
 
