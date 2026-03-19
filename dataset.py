@@ -20,7 +20,7 @@ class LSTM_Dataset(data.Dataset):
             self.total_anomalies = np.sum(self.labels == 1)
             self.dataset = self.dataset.drop(["y", "category"], axis = 1)
 
-        self.normalized_dataset = torch.from_numpy(RobustScaler().fit_transform(self.dataset))
+        self.normalized_dataset = torch.from_numpy(RobustScaler().fit_transform(self.dataset)).float()
 
     def __len__(self):
         return len(self.normalized_dataset) - self.window_size
