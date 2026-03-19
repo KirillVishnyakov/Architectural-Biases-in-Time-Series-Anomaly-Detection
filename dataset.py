@@ -10,6 +10,7 @@ class LSTM_Dataset(data.Dataset):
     def __init__(self, device, window_size, start = 0, end = 90000, train = True):
         self.train = train
         self.window_size = window_size
+        self.device = device
         if self.train:
             self.dataset = pd.read_csv("/kaggle/input/datasets/kirillvishnyakov/cats-dataset/data.csv", skiprows=range(1, start+1), nrows=end - start).drop(["y", "category", "timestamp"], axis = 1)
         else:
@@ -21,25 +22,18 @@ class LSTM_Dataset(data.Dataset):
 
         self.normalized_dataset = torch.from_numpy(RobustScaler().fit_transform(self.dataset))
 
-        self.X, self.y = torch.zeros((end - start - window_size, window_size, 17)), torch.zeros((end - start - window_size, 17))
-
-        for i in range(len(self.normalized_dataset) - window_size):
-            window = self.normalized_dataset[i: i+window_size]
-            target = self.normalized_dataset[i+window_size]
-
-            self.X[i] = window
-            self.y[i] = target
-        self.X = self.X.to(device)
-        self.y = self.y.to(device)
     def __len__(self):
-        return len(self.y)
+        return len(self.normalized_dataset) - self.window_size
 
     def __getitem__(self, idx):
+        X = self.normalized_dataset[idx : idx + self.window_size]
+        y = self.normalized_dataset[idx + self.window_size]
+
         if self.train:
-            return self.X[idx], self.y[idx]
+            return X[idx].to(self.device), y[idx].to(self.device)
         else: 
             label = self.labels[idx + self.window_size]
             category = self.categories[idx + self.window_size]
-            return self.X[idx], self.y[idx], label, category
+            return X[idx].to(self.device), y[idx].to(self.device), label, category
 
 
