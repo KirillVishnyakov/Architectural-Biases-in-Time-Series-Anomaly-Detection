@@ -30,10 +30,10 @@ class LSTM_Dataset(data.Dataset):
         y = self.normalized_dataset[idx + self.window_size]
 
         if self.train:
-            return X[idx].to(self.device), y[idx].to(self.device)
+            return X.to(self.device), y.to(self.device)
         else: 
             label = self.labels[idx + self.window_size]
             category = self.categories[idx + self.window_size]
-            return X[idx].to(self.device), y[idx].to(self.device), label, category
+            return X.to(self.device), y.to(self.device), label, category
 
 
