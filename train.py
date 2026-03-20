@@ -108,4 +108,4 @@ def fit_lstm(device, model, exp_name, train_dataset, test_dataset, lr, batch_siz
                 print("Stopping early")
                 break
 
-    return best_model_wts
+    return best_model_wts, best_loss
