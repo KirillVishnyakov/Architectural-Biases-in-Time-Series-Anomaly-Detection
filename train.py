@@ -1,8 +1,7 @@
-import numpy as np
 import torch.nn as nn
 import torch
 import copy
-from tqdm.notebook import tqdm
+from torch.utils.data import DataLoader
 
 class EarlyStopping:
     def __init__(self, patience=10, min_delta=0.0001, mode='min'):
@@ -61,11 +60,10 @@ def initialize_weights_xavier(m):
         elif 'bias' in name:
             nn.init.constant_(param.data, 0)
 
-def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs, chunks = 10):
-    num_batches = len(train_dataset) // batch_size
-    train_mse_array = np.zeros(num_epochs)
-    test_mse_array = np.zeros(num_epochs)
-
+def fit_lstm(device, model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs):
+    train_loader = DataLoader(train_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True)
+    test_loader = DataLoader(test_dataset, batch_size = 1, num_workers = 1, pin_memory = True, persistent_workers=True)
+    
     model.apply(initialize_weights_xavier)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
     loss_fn = nn.MSELoss()
@@ -73,38 +71,35 @@ def fit_lstm(model, exp_name, train_dataset, test_dataset, lr, batch_size, num_e
     LrPlateauSchedule = LrPlateauScheduler()
     for epoch in range(num_epochs):
         model.train()
-        for batch_idx in range(num_batches):
-            window_batch = train_dataset[batch_idx * batch_size: (batch_idx + 1)*batch_size]
+        train_losses = []
+        for i, (X, y) in enumerate(train_loader):
+            X, y = X.to(device), y.to(device)
             optimizer.zero_grad()
-            y_pred_batch = model(window_batch[0])
-            loss = loss_fn(window_batch[1], y_pred_batch)
-        
+            y_pred_batch = model(X)
+            loss = loss_fn(y, y_pred_batch)
+            train_losses.append(loss.item())
             loss.backward()
             optimizer.step()
-
-        model.eval()  
+        eval_losses = []
+        model.eval()
         with torch.no_grad():
-            train_X_chunks, test_X_chunks = torch.chunk(train_dataset.X, chunks, dim=0), torch.chunk(test_dataset.X, chunks, dim=0)
-            train_y_chunks, test_y_chunks = torch.chunk(train_dataset.y, chunks, dim=0), torch.chunk(test_dataset.y, chunks, dim=0)
-
-            train_eval_loss, test_eval_loss = 0, 0
-
-            for k in range(chunks):
-                train_eval_loss += loss_fn(model(train_X_chunks[k]), train_y_chunks[k]).item() * len(train_y_chunks[k])/len(train_dataset.X)
-                test_eval_loss += loss_fn(model(test_X_chunks[k]), test_y_chunks[k]).item() * len(test_y_chunks[k])/len(test_dataset.X)
-
-            train_mse_array[epoch] = train_eval_loss
-            test_mse_array[epoch] = test_eval_loss
-            if (epoch + 1) % 10 == 0:
-                print(f"|{exp_name}| train = {train_mse_array[epoch]:.4f}, test= {test_mse_array[epoch]:.4f}")
-            if LrPlateauSchedule(test_mse_array[epoch]):
+            for X, y, _, __ in test_loader:
+                X, y = X.to(device), y.to(device)
+                y_pred_batch = model(X)
+                loss = loss_fn(y, y_pred_batch)
+                eval_losses.append(loss.item())
+            if True:
+                print(f"|{exp_name}| train = {sum(train_losses)/len(train_losses):.4f}, test= {sum(eval_losses)/len(eval_losses):.4f}")
+            avg_eval_loss = sum(eval_losses) / len(eval_losses)
+            avg_train_loss = sum(train_losses) / len(train_losses)
+            if LrPlateauSchedule(avg_eval_loss):
                 current_lr = optimizer.param_groups[0]['lr']
                 optimizer.param_groups[0]['lr'] = current_lr * 0.5
                 print(f"update LR: {current_lr} -> {optimizer.param_groups[0]['lr']}")
-            if earlyStopper(test_mse_array[epoch]):
-                print(f"| experiment: {exp_name} | epoch {epoch + 1}, train: MSE {train_mse_array[epoch]:.4f}, test MSE: {test_mse_array[epoch]:.4f}")
+            if earlyStopper(avg_eval_loss):
+                print(f"| experiment: {exp_name} | epoch {epoch + 1}, train: MSE {avg_train_loss:.4f}, test MSE: {avg_eval_loss:.4f}")
                 print("Stopping early")
                 break
-            if test_mse_array[epoch] < earlyStopper.best_score + earlyStopper.min_delta:
+            if avg_eval_loss < earlyStopper.best_score:
                 best_model_wts = copy.deepcopy(model.state_dict())
-    return best_model_wts, train_mse_array[:epoch], test_mse_array[:epoch]
+    return best_model_wts

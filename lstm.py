@@ -1,23 +1,23 @@
 import torch.nn as nn
 import torch
-import torch.nn as nn
 from typing import List
 
 class LSTMBaseline(nn.Module):
-    def __init__(self, hidden_size, num_layers = 1, input_size = 17, output_size = 17, dropout = 0.0):
+    def __init__(self, hidden_size, l = 1, num_layers = 1, input_size = 17, output_size = 17):
         super().__init__()
-
-
+        
+        self.l = l
+        self.output_size = output_size
         self.LSTM = nn.LSTM(input_size, hidden_size, batch_first=True, num_layers = num_layers)
         
-        self.linear = nn.Linear(hidden_size, output_size)
+        self.linear = nn.Linear(hidden_size, output_size * l)
 
     def forward(self, input):
         output, (h_n, c_n) = self.LSTM(input)
 
         last_timestep = output[:, -1, :]
         x = self.linear(last_timestep)
-        return x
+        return x.view(-1, self.l, self.output_size) #(batch, timesteps, features)
 
 
     
