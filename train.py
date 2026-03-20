@@ -60,7 +60,7 @@ def initialize_weights_xavier(m):
 
 def fit_lstm(device, model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs):
     train_loader = DataLoader(train_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True)
-    test_loader = DataLoader(test_dataset, batch_size = 1, num_workers = 1, pin_memory = True, persistent_workers=True)
+    test_loader = DataLoader(test_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True)
     
     model.apply(initialize_weights_xavier)
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
@@ -108,4 +108,4 @@ def fit_lstm(device, model, exp_name, train_dataset, test_dataset, lr, batch_siz
                 print("Stopping early")
                 break
 
-    return best_model_wts, best_loss
+    return best_model_wts, best_loss, avg_train_loss
