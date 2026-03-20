@@ -53,9 +53,7 @@ class LrPlateauScheduler:
 
 def initialize_weights_xavier(m):
     for name, param in m.named_parameters():
-        if 'weight_ih' in name:
-            nn.init.xavier_uniform_(param.data)
-        elif 'weight_hh' in name:
+        if 'weight' in name:
             nn.init.xavier_uniform_(param.data)
         elif 'bias' in name:
             nn.init.constant_(param.data, 0)
@@ -69,6 +67,10 @@ def fit_lstm(device, model, exp_name, train_dataset, test_dataset, lr, batch_siz
     loss_fn = nn.MSELoss()
     earlyStopper = EarlyStopping()
     LrPlateauSchedule = LrPlateauScheduler()
+
+    best_loss = float("inf")
+    best_model_wts = copy.deepcopy(model.state_dict())
+
     for epoch in range(num_epochs):
         model.train()
         train_losses = []
@@ -92,6 +94,11 @@ def fit_lstm(device, model, exp_name, train_dataset, test_dataset, lr, batch_siz
                 print(f"|{exp_name}| train = {sum(train_losses)/len(train_losses):.4f}, test= {sum(eval_losses)/len(eval_losses):.4f}")
             avg_eval_loss = sum(eval_losses) / len(eval_losses)
             avg_train_loss = sum(train_losses) / len(train_losses)
+
+            if avg_eval_loss < best_loss:
+                best_model_wts = copy.deepcopy(model.state_dict())
+                best_loss = avg_eval_loss
+
             if LrPlateauSchedule(avg_eval_loss):
                 current_lr = optimizer.param_groups[0]['lr']
                 optimizer.param_groups[0]['lr'] = current_lr * 0.5
@@ -100,6 +107,5 @@ def fit_lstm(device, model, exp_name, train_dataset, test_dataset, lr, batch_siz
                 print(f"| experiment: {exp_name} | epoch {epoch + 1}, train: MSE {avg_train_loss:.4f}, test MSE: {avg_eval_loss:.4f}")
                 print("Stopping early")
                 break
-            if avg_eval_loss < earlyStopper.best_score:
-                best_model_wts = copy.deepcopy(model.state_dict())
+
     return best_model_wts
