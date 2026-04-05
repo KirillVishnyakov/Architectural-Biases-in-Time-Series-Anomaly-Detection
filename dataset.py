@@ -13,11 +13,11 @@ class LSTM_Dataset(data.Dataset):
         self.window_size = window_size
         self.device = device
         if self.train:
-            self.dataset = pd.read_csv("/kaggle/input/datasets/kirillvishnyakov/cats-dataset/data.csv", skiprows=range(1, start+1), nrows=end - start).drop(["y", "category", "timestamp"], axis = 1)
+            self.dataset = pd.read_csv("data.csv", skiprows=range(1, start+1), nrows=end - start).drop(["y", "category", "timestamp"], axis = 1)
             self.scaler = RobustScaler().fit(self.dataset)
             
         else:
-            self.dataset = pd.read_csv("/kaggle/input/datasets/kirillvishnyakov/cats-dataset/data.csv", skiprows=range(1, start+1), nrows=end - start).drop(["timestamp"], axis = 1)
+            self.dataset = pd.read_csv("data.csv", skiprows=range(1, start+1), nrows=end - start).drop(["timestamp"], axis = 1)
             self.labels = self.dataset["y"].values
             self.categories = self.dataset["category"].values
             self.total_anomalies = np.sum(self.labels == 1)
