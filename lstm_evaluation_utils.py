@@ -3,7 +3,8 @@ import torch
 from scipy.stats import multivariate_normal
 from torch.utils.data import DataLoader
 
-def calculate_gauss_distribution(device, model, train_loader):
+def calculate_gauss_distribution(device, model, dataset):
+    train_loader = DataLoader(dataset, batch_size=64, shuffle=False)
     model.eval()
     error_vectors = []
     with torch.no_grad():
