@@ -90,7 +90,7 @@ def fit_lstm(device, model, exp_name, train_dataset, test_dataset, lr, batch_siz
                 y_pred_batch = model(X)
                 loss = loss_fn(y, y_pred_batch)
                 eval_losses.append(loss.item())
-            if True:
+            if (epoch+1) % 10 == 0:
                 print(f"|{exp_name}| train = {sum(train_losses)/len(train_losses):.4f}, test= {sum(eval_losses)/len(eval_losses):.4f}")
             avg_eval_loss = sum(eval_losses) / len(eval_losses)
             avg_train_loss = sum(train_losses) / len(train_losses)
