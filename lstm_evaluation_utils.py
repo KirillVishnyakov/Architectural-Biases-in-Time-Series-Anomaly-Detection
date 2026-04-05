@@ -16,7 +16,7 @@ def calculate_gauss_distribution(device, model, dataset):
 
     E = np.concatenate(error_vectors, axis=0) #[(batch 1, l*17), (batch 2, l*17), ...] -> (all train timesteps, l * 17)
     mu = E.mean(axis=0)
-    sigma = np.cov(E.T)
+    sigma = np.diag(E.var(axis=0) + 1e-6)
 
     dist = multivariate_normal(mean=mu, cov=sigma, allow_singular=True)
     return dist
