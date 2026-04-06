@@ -49,7 +49,7 @@ class patch_transformer_encoder(nn.Module):
         self.feature_mixer = nn.Sequential(
             nn.Linear(17, 64),
             nn.ReLU(),
-            nn.Sequential(64, 17)
+            nn.Linear(64, 17)
         )
         self.revin_layer = RevIN(17)
         self.input_proj = nn.Linear(self.patch_length, d_model, dtype=torch.float32)
