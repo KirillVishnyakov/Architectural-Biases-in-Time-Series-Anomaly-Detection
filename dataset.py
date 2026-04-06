@@ -3,6 +3,7 @@ import torch
 import torch.utils.data as data
 import numpy as np
 from sklearn.preprocessing import RobustScaler
+import config as config
 
 
 # Stride of 1 is implicitly implied. Window size can be set.

@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 import math
+import config as config
 
 class positional_encoding(nn.Module):
     def __init__(self, d_model, max_len=10000, dropout=0.1):
