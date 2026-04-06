@@ -2,11 +2,9 @@ import torch.nn as nn
 import torch
 import torch.nn.functional as F
 import math
-from dataset import LSTM_Dataset
-
 
 class positional_encoding(nn.Module):
-    def __init__(self, d_model, max_len=10000, dropout=0):
+    def __init__(self, d_model, max_len=10000, dropout=0.1):
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)
         
@@ -17,12 +15,12 @@ class positional_encoding(nn.Module):
         pe[:, 1::2] = torch.cos(pos * div_term)
         pe = pe.unsqueeze(0)
         self.register_buffer('pe', pe)
-
+    
     def forward(self, x):
         T = x.size(1)
         x = x + self.pe[:, :T, :]
         return self.dropout(x)
-    
+        
 def init_weights_xavier(module):
     """Apply Xavier initialization to linear layers and embeddings with small gain for stability."""
     if isinstance(module, nn.Linear):
@@ -33,24 +31,36 @@ def init_weights_xavier(module):
     elif isinstance(module, nn.Embedding):
         # Normal init for embeddings is more stable
         nn.init.normal_(module.weight, mean=0.0, std=0.02)
+        
 
 class patch_transformer_encoder(nn.Module):
-    def __init__(self, lookback_window = 100, forecast_horizon = 4, d_model = 256, nhead = 8):
+    def __init__(self, lookback_window = 100, forecast_horizon = 4, d_model = 256, nhead = 8, dropout = 0.1):
         super().__init__()
         self.forecast_horizon = forecast_horizon
-        self.patch_length = 4
-        self.stride = 2
+        self.dropout = dropout
+        
+        self.patch_length = 16
+        self.stride = 8
         n_patches = math.floor((lookback_window - self.patch_length) / self.stride) + 2
+        print(n_patches)
+        
         self.instance_norm = nn.InstanceNorm1d(17)
         self.input_proj = nn.Linear(self.patch_length, d_model, dtype=torch.float32)
-        self.pos_embed = positional_encoding(d_model)
-        self.encoder_layer = nn.TransformerEncoderLayer(d_model = d_model, nhead = nhead, batch_first = True, dtype=torch.float32)
+        self.pos_embed = positional_encoding(d_model, dropout = self.dropout)
+
+        encoder_norm = nn.LayerNorm(d_model)
+        self.encoder_layer = nn.TransformerEncoderLayer(d_model = d_model, nhead = nhead, batch_first = True, dropout = self.dropout, dtype=torch.float32)
+        self.encoder = nn.TransformerEncoder(self.encoder_layer, num_layers=4, norm = encoder_norm)
+        
         self.linear_end = nn.Linear(n_patches * d_model, forecast_horizon, dtype=torch.float32)
+
+        
         self.apply(init_weights_xavier)
-
-
+        
+    
     def forward(self, x):
         #[B, L, M]
+        #print(f"in forward: {x.shape}")
         B, L, M = x.shape
         x = x.permute(0, 2, 1) #instanceNorm1d processes along second dim
         #[B, M, L]
@@ -73,26 +83,8 @@ class patch_transformer_encoder(nn.Module):
     def patch(self, x):
         #input is [B*M, L]
         #pad with last value just enough to guarantee unfolding every value
-        x = F.pad(x, pad = (0, self.stride - 1), value = 0)
+        x = F.pad(x, pad = (0, self.stride), value = 0)
         x = x.unfold(dimension = 1, size = self.patch_length, step = self.stride)
         #x is [B*M, N, P]
     
         return x
-
-
-        
-
-if __name__ == "__main__":
-    train_dataset = LSTM_Dataset(100, 15, start = 0, end = 300000)
-    X1, y1 = train_dataset[0]
-    X2, y2 = train_dataset[1]
-    X, y = torch.stack((X1, X2), dim = 0), torch.stack((y1, y2), dim = 0)
-
-    model = patch_transformer_encoder(lookback_window = 15, forecast_horizon = 3)
-    res = model(X)
-
-    loss_fn = nn.MSELoss()
-    loss = loss_fn(y, res)
-    print(res.shape)
-    print(loss)
-    #print(res)

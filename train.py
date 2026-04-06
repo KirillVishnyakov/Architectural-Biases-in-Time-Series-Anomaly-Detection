@@ -1,10 +1,12 @@
+import os
 import torch.nn as nn
 import torch
 import copy
+import math
 from torch.utils.data import DataLoader
 
 class EarlyStopping:
-    def __init__(self, patience=10, min_delta=0.0001, mode='min'):
+    def __init__(self, patience=15, min_delta=0.00005, mode='min'):
         self.patience = patience
         self.min_delta = min_delta
         self.mode = mode
@@ -29,44 +31,73 @@ class EarlyStopping:
                 return True
         return False
 
-class LrPlateauScheduler:
-    def __init__(self, patience=3, min_delta=0.0001, mode='min'):
-        self.patience = patience
-        self.best_score = None
-        self.counter = 0
-        self.min_delta = min_delta
-
-    def __call__(self, score):
-        if self.best_score is None:
-            self.best_score = score
-            return False
-        improved = score < self.best_score - self.min_delta
-        if improved:
-            self.best_score = score
-            self.counter = 0
-        else:
-            self.counter += 1
-            if self.counter >= self.patience:
-                self.counter = 0
-                return True
-        return False
-
-def initialize_weights_xavier(m):
-    for name, param in m.named_parameters():
-        if 'weight' in name:
-            nn.init.xavier_uniform_(param.data)
-        elif 'bias' in name:
-            nn.init.constant_(param.data, 0)
-
-def fit_lstm(device, model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs):
-    train_loader = DataLoader(train_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True)
-    test_loader = DataLoader(test_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True)
+class WarmupCosineScheduler:
+    """Learning rate scheduler with linear warmup and cosine decay."""
+    def __init__(self, optimizer, warmup_steps, total_steps, min_lr=1e-7):
+        self.optimizer = optimizer
+        self.warmup_steps = warmup_steps
+        self.total_steps = total_steps
+        self.min_lr = min_lr
+        self.base_lrs = [group['lr'] for group in optimizer.param_groups]
+        self.current_step = 0
+        
+    def step(self):
+        self.current_step += 1
+        lr = self.get_lr()
+        for param_group, base_lr in zip(self.optimizer.param_groups, self.base_lrs):
+            param_group['lr'] = lr
+        return lr
     
-    model.apply(initialize_weights_xavier)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+    def get_lr(self):
+        if self.current_step < self.warmup_steps:
+            # Linear warmup
+            return self.base_lrs[0] * (self.current_step / max(1, self.warmup_steps))
+        else:
+            # Cosine decay
+            progress = (self.current_step - self.warmup_steps) / max(1, self.total_steps - self.warmup_steps)
+            return self.min_lr + 0.5 * (self.base_lrs[0] - self.min_lr) * (1 + math.cos(math.pi * progress))
+    
+    def state_dict(self):
+        return {'current_step': self.current_step}
+    
+    def load_state_dict(self, state_dict):
+        self.current_step = state_dict['current_step']
+
+
+def transform_data(device, data, mode = 'train'):
+    if mode == 'train':
+        #white noise
+        noisy_data = data + torch.randn_like(data, device = device) * 0.05
+    return noisy_data
+
+#TODO move magic parameters to a yaml file or smth
+def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs, shuffle = False):
+    train_loader = DataLoader(train_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True, shuffle = shuffle)
+    test_loader = DataLoader(test_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True)
+
+
+    checkpoint_dir = f"/kaggle/working/checkpoints/{exp_name}"
+    os.makedirs(checkpoint_dir, exist_ok=True)
+
+    #according to GPT-2 and onwards, you should remove weight decay from bias's and layer norms
+    optimizer = torch.optim.AdamW([
+    {'params': [p for n, p in model.named_parameters() 
+                if p.requires_grad and p.dim() >= 2], 'weight_decay': 0.01},
+    {'params': [p for n, p in model.named_parameters() 
+                if p.requires_grad and p.dim() < 2], 'weight_decay': 0.0}
+    ], lr=lr)
+    
     loss_fn = nn.MSELoss()
     earlyStopper = EarlyStopping()
-    LrPlateauSchedule = LrPlateauScheduler()
+    total_steps = len(train_loader) * num_epochs
+    warmup_steps = min(len(train_loader) * 5, total_steps // 10) # 5 is num of warmup epochs
+    scheduler = WarmupCosineScheduler(
+        optimizer, 
+        warmup_steps=warmup_steps,
+        total_steps=total_steps,
+        min_lr=lr * 0.01
+    )
+    print(f"LR Scheduler: {warmup_steps} warmup steps, {total_steps} total steps")
 
     best_loss = float("inf")
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -76,12 +107,20 @@ def fit_lstm(device, model, exp_name, train_dataset, test_dataset, lr, batch_siz
         train_losses = []
         for i, (X, y) in enumerate(train_loader):
             X, y = X.to(device), y.to(device)
+            X = transform_data(device, X, "train")
+            y = transform_data(device, y, "train")
             optimizer.zero_grad()
+            
+            
             y_pred_batch = model(X)
             loss = loss_fn(y, y_pred_batch)
             train_losses.append(loss.item())
+            
             loss.backward()
             optimizer.step()
+            scheduler.step()
+            if (i+1) % 64 == 0:
+                print(f"batch: {i+1} | train_loss: {loss:.4f}")
         eval_losses = []
         model.eval()
         with torch.no_grad():
@@ -90,22 +129,30 @@ def fit_lstm(device, model, exp_name, train_dataset, test_dataset, lr, batch_siz
                 y_pred_batch = model(X)
                 loss = loss_fn(y, y_pred_batch)
                 eval_losses.append(loss.item())
-            if (epoch+1) % 10 == 0:
-                print(f"|{exp_name}| train = {sum(train_losses)/len(train_losses):.4f}, test= {sum(eval_losses)/len(eval_losses):.4f}")
+
+            if (epoch+1) % 1 == 0:
+                print(f"|{exp_name}| train = {sum(train_losses)/len(train_losses):.4f} | test= {sum(eval_losses)/len(eval_losses):.4f} | LR: {scheduler.get_lr():.2e}")
+
             avg_eval_loss = sum(eval_losses) / len(eval_losses)
             avg_train_loss = sum(train_losses) / len(train_losses)
 
+
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'best_loss': best_loss,
+            }, f"{checkpoint_dir}/epoch_{epoch+1}.pt")
+
+            
             if avg_eval_loss < best_loss:
                 best_model_wts = copy.deepcopy(model.state_dict())
                 best_loss = avg_eval_loss
 
-            if LrPlateauSchedule(avg_eval_loss):
-                current_lr = optimizer.param_groups[0]['lr']
-                optimizer.param_groups[0]['lr'] = current_lr * 0.5
-                print(f"update LR: {current_lr} -> {optimizer.param_groups[0]['lr']}")
             if earlyStopper(avg_eval_loss):
                 print(f"| experiment: {exp_name} | epoch {epoch + 1}, train: MSE {avg_train_loss:.4f}, test MSE: {avg_eval_loss:.4f}")
                 print("Stopping early")
                 break
-
+            
     return best_model_wts, best_loss, avg_train_loss
