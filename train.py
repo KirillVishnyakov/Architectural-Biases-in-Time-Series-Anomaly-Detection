@@ -116,7 +116,11 @@ def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, bat
                 y_pred_batch = model(X)
                 loss = loss_fn(y, y_pred_batch)
                 
-            train_losses.append(loss.item())
+            # DONT RECORD WARMUP STEP LOSSES, first ones are very high and not indicative.
+            if epoch == 0 and i < warmup_steps:
+                pass  
+            else:
+                train_losses.append(loss.item())
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
@@ -134,7 +138,7 @@ def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, bat
                 eval_losses.append(loss.item())
 
 
-            avg_train_loss = sum(train_losses[warmup_steps:]) / len(train_losses[warmup_steps:]) if epoch == 0 else sum(train_losses) / len(train_losses)
+            avg_train_loss = sum(train_losses) / len(train_losses)
             avg_eval_loss = sum(eval_losses) / len(eval_losses)
 
             if (epoch+1) % 1 == 0:
