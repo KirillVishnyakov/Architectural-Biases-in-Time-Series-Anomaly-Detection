@@ -31,3 +31,8 @@ notebooks/
 
 # Github commits cause
 I have to work with cloud gpus from browser notebooks (colab, kaggle, modal), and dumping the entire repo inside them is annoying.
+
+# Citations
+I use RevIN (Kim et al., 2021) to mitigate distribution shift via reversible normalization.
+(https://openreview.net/forum?id=cGDAkQo1C0p)
+RevIN.py is taken from (https://github.com/ts-kim/RevIN/tree/master)

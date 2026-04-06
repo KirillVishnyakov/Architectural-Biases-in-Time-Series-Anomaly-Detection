@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 import math
 import config as config
+from RevIN import RevIN
 
 class positional_encoding(nn.Module):
     def __init__(self, d_model, max_len=10000, dropout=0.1):
@@ -44,8 +45,13 @@ class patch_transformer_encoder(nn.Module):
         self.stride = 8
         n_patches = math.floor((lookback_window - self.patch_length) / self.stride) + 2
         print(n_patches)
-        
-        self.instance_norm = nn.InstanceNorm1d(17)
+
+        self.feature_mixer = nn.Sequential(
+            nn.Linear(17, 64),
+            nn.ReLU(),
+            nn.Sequential(64, 17)
+        )
+        self.revin_layer = RevIN(17)
         self.input_proj = nn.Linear(self.patch_length, d_model, dtype=torch.float32)
         self.pos_embed = positional_encoding(d_model, dropout = self.dropout)
 
@@ -60,12 +66,12 @@ class patch_transformer_encoder(nn.Module):
         
     
     def forward(self, x):
-        #[B, L, M]
-        #print(f"in forward: {x.shape}")
+        #x is [B, L, M]
         B, L, M = x.shape
-        x = x.permute(0, 2, 1) #instanceNorm1d processes along second dim
+        x = self.feature_mixer(x)
+        x = self.revin_layer(x, 'norm')
+        x = x.permute(0, 2, 1) #following papers structure
         #[B, M, L]
-        x = self.instance_norm(x)
         x = x.reshape(B * M, L) #if deleguate features to batch, model processes 1 feature at a time for each batch -> vectorized channel independent inputs
         #[B*M, L]
         x = self.patch(x)
@@ -80,7 +86,8 @@ class patch_transformer_encoder(nn.Module):
         x = self.linear_end(x)
         #[B*M, forecast_horizon]
         x = x.reshape(B, M, -1) #[B, M, forecast_horizon]
-        return torch.transpose(x, 1, 2)
+        x = torch.transpose(x, 1, 2) # [B, horizon, M]
+        return self.revin_layer(x, 'denorm')
     def patch(self, x):
         #input is [B*M, L]
         #pad with last value just enough to guarantee unfolding every value
