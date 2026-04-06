@@ -72,7 +72,7 @@ class patch_transformer_encoder(nn.Module):
         x = self.input_proj(x)
         #[B*M, N, P] @ [P, D] = [B*M, N, D] which is number of patches x dimension
         x = self.pos_embed(x)
-        x = self.encoder_layer(x)
+        x = self.encoder(x)
         #[B*M, N, D]
         x = x.flatten(1)
         #[B*M, N x D]
@@ -83,7 +83,7 @@ class patch_transformer_encoder(nn.Module):
     def patch(self, x):
         #input is [B*M, L]
         #pad with last value just enough to guarantee unfolding every value
-        x = F.pad(x, pad = (0, self.stride), value = 0)
+        x = F.pad(x, pad = (0, self.stride), mode = "replicate")
         x = x.unfold(dimension = 1, size = self.patch_length, step = self.stride)
         #x is [B*M, N, P]
     

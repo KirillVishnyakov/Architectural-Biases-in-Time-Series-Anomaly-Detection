@@ -108,7 +108,6 @@ def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, bat
         for i, (X, y) in enumerate(train_loader):
             X, y = X.to(device), y.to(device)
             X = transform_data(device, X, "train")
-            y = transform_data(device, y, "train")
             optimizer.zero_grad()
             
             
@@ -117,6 +116,7 @@ def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, bat
             train_losses.append(loss.item())
             
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             scheduler.step()
             if (i+1) % 64 == 0:
