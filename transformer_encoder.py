@@ -68,8 +68,8 @@ class patch_transformer_encoder(nn.Module):
     def forward(self, x):
         #x is [B, L, M]
         B, L, M = x.shape
-        x = self.feature_mixer(x)
         x = self.revin_layer(x, 'norm')
+        x = self.feature_mixer(x)
         x = x.permute(0, 2, 1) #following papers structure
         #[B, M, L]
         x = x.reshape(B * M, L) #if deleguate features to batch, model processes 1 feature at a time for each batch -> vectorized channel independent inputs
