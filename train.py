@@ -92,7 +92,7 @@ def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, bat
     loss_fn = nn.MSELoss()
     earlyStopper = EarlyStopping()
     total_steps = len(train_loader) * num_epochs
-    warmup_steps = len(train_loader) * 3 # 2 epochs
+    warmup_steps = len(train_loader) // 2 #
     scheduler = WarmupCosineScheduler(
         optimizer, 
         warmup_steps=warmup_steps,
