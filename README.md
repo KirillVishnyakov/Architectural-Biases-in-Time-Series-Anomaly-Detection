@@ -28,3 +28,6 @@ notebooks/
     └── transformer_results.csv
 
 ```
+
+# Github commits cause
+I have to work with cloud gpus from browser notebooks (colab, kaggle, modal), and dumping the entire repo inside them is annoying.
