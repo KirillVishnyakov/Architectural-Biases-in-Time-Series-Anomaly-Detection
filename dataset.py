@@ -17,11 +17,11 @@ class forecasting_Dataset(data.Dataset):
 
         #log transform has to be applied before scaler, or the scaler will get thrown off by outliers (in log_transform_cols)
         if self.train:
-            self.dataset = pd.read_csv("/kaggle/input/datasets/kirillvishnyakov/cats-dataset/data.csv", skiprows=range(1, start+1), nrows=end - start).drop(["y", "category", "timestamp"], axis = 1)
+            self.dataset = pd.read_csv(config.DATA_PATH, skiprows=range(1, start+1), nrows=end - start).drop(["y", "category", "timestamp"], axis = 1)
             self.scaler = RobustScaler().fit(self.dataset)
             
         else:
-            self.dataset = pd.read_csv("/kaggle/input/datasets/kirillvishnyakov/cats-dataset/data.csv", skiprows=range(1, start+1), nrows=end - start).drop(["timestamp"], axis = 1)
+            self.dataset = pd.read_csv(config.DATA_PATH, skiprows=range(1, start+1), nrows=end - start).drop(["timestamp"], axis = 1)
             self.labels = self.dataset["y"].values
             self.categories = self.dataset["category"].values
             self.total_anomalies = np.sum(self.labels == 1)

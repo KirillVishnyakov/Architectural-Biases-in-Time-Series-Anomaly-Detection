@@ -77,10 +77,11 @@ def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, bat
     test_loader = DataLoader(test_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True)
 
 
-    checkpoint_dir = f"/kaggle/working/checkpoints/{exp_name}"
+    #checkpoint_dir = f"/kaggle/working/checkpoints/{exp_name}"
+    checkpoint_dir = config.CHECKPOINT_DIR
     os.makedirs(checkpoint_dir, exist_ok=True)
 
-    #according to GPT-2 and onwards, you should remove weight decay from bias's and layer norms
+    #according to GPT-2 architecture and onwards, you should remove weight decay from bias's and layer norms
     optimizer = torch.optim.AdamW([
     {'params': [p for n, p in model.named_parameters() 
                 if p.requires_grad and p.dim() >= 2], 'weight_decay': 0.01},
