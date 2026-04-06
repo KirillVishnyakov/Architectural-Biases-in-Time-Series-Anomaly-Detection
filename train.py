@@ -103,20 +103,20 @@ def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, bat
 
     best_loss = float("inf")
     best_model_wts = copy.deepcopy(model.state_dict())
-
+    
     for epoch in range(num_epochs):
         model.train()
         train_losses = []
+        
         for i, (X, y) in enumerate(train_loader):
             X, y = X.to(device), y.to(device)
             X = transform_data(device, X, "train")
             optimizer.zero_grad()
-            
-            
-            y_pred_batch = model(X)
-            loss = loss_fn(y, y_pred_batch)
+            with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+                y_pred_batch = model(X)
+                loss = loss_fn(y, y_pred_batch)
+                
             train_losses.append(loss.item())
-            
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
@@ -128,16 +128,17 @@ def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, bat
         with torch.no_grad():
             for X, y, _, __ in test_loader:
                 X, y = X.to(device), y.to(device)
-                y_pred_batch = model(X)
-                loss = loss_fn(y, y_pred_batch)
+                with torch.autocast(device_type='cuda', dtype=torch.bfloat16):
+                    y_pred_batch = model(X)
+                    loss = loss_fn(y, y_pred_batch)
                 eval_losses.append(loss.item())
 
-            if (epoch+1) % 1 == 0:
-                print(f"|{exp_name}| train = {sum(train_losses)/len(train_losses):.4f} | test= {sum(eval_losses)/len(eval_losses):.4f} | LR: {scheduler.get_lr():.2e}")
 
+            avg_train_loss = sum(train_losses[warmup_steps:]) / len(train_losses[warmup_steps:]) if epoch == 0 else sum(train_losses) / len(train_losses)
             avg_eval_loss = sum(eval_losses) / len(eval_losses)
-            avg_train_loss = sum(train_losses) / len(train_losses)
 
+            if (epoch+1) % 1 == 0:
+                print(f"|{exp_name}| train = {avg_train_loss:.4f} | test= {avg_eval_loss:.4f} | LR: {scheduler.get_lr():.2e}")
 
             torch.save({
                 'epoch': epoch,
