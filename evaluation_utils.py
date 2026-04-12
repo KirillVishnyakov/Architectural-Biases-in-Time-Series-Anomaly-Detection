@@ -1,57 +1,40 @@
 import numpy as np
 import torch
+from scipy.stats import multivariate_normal
 from torch.utils.data import DataLoader
-from collections import deque
-import numpy as np
-import config as config
+import utils.config as config
 
-def robust_scaled_feature_mse(feature_buffer, feat_err):
-    buffer_arr = np.array(feature_buffer)
-    # Compute median for each feature seen recentyl
-    med = np.median(buffer_arr, axis=0)
-    mad = np.median(np.abs(buffer_arr - med), axis=0)
-    scale = np.clip(mad, 1e-8, None)
-
-    return np.mean(((feat_err - med) / scale) ** 2, axis=1)
-
-
-def calculate_scores(device, model, dataset, batch_size = 1024, window_size = 200, min_history = 50, q = 0.99):
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
-    scores, labels, categories = [], [], []
-    flags = [], []
-    
-    # sliding window keeping track of past residuals
-    feature_buffer = deque(maxlen=window_size) # deque for popping front in O(1)
-    threshold_buffer = deque(maxlen=window_size)
-    
+def calculate_gauss_distribution(device, model, dataset, batch_size = 1024):
+    train_loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers = 2, pin_memory = True)
     model.eval()
-    with torch.no_grad():
+    error_vectors = []
+    with torch.inference_mode():
+        for X, y in train_loader:
+            X, y = X.to(device), y.to(device)
+            y_pred = model(X)
+            error = (y - y_pred).reshape(len(X), -1) #(timesteps, l*17)
+            error_vectors.append(error.cpu().numpy())
+
+    E = np.concatenate(error_vectors, axis=0) #[(batch 1, l*17), (batch 2, l*17), ...] -> (all train timesteps, l * 17)
+    mu = E.mean(axis=0)
+    sigma = np.diag(E.var(axis=0) + 1e-6)
+
+    dist = multivariate_normal(mean=mu, cov=sigma, allow_singular=True)
+    return dist
+
+
+
+def evaluate_lstm_scores(device, model, dataset, dist, batch_size = 1024):
+    loader = DataLoader(dataset, batch_size = batch_size, shuffle=False, num_workers = 2, pin_memory = True)
+    scores, labels, categories = [], [], []
+    model.eval()
+    with torch.inference_mode():
         for X, y, label, category in loader:
             X, y = X.to(device), y.to(device)
             y_pred = model(X)
-
-            residuals = (y - y_pred).cpu().numpy()  # (batch, horizon, features)
-            feature_error = np.mean(residuals**2, axis = 1) # (batch, features) 
-            
-            batch_scores = \
-            robust_scaled_feature_mse(feature_buffer, feature_error) if len(feature_buffer) >= min_history else np.full(len(feature_error), np.nan) # better than np.zeros(len(feature_error))
-
-            # determine if each score is anomalous or not based on rolling threshold
-            for s_t in batch_scores:
-                #batch_scores are filled with nan when len(feature_buffer) < min_history
-                if np.isnan(s_t):
-                    flags.append(False)
-                    continue
-                recent = np.array(threshold_buffer)
-                flag = s_t > np.quantile(recent, q) if len(threshold_buffer) >= min_history else False
-                flags.append(flag)
-                threshold_buffer.append(s_t)
-                 
-            #will pop in O(1) the beginning if length exceeds window size
-            feature_buffer.extend(feature_error)
-
-            scores.extend(batch_scores)
+            error = (y - y_pred).reshape(len(X), -1).cpu().numpy()
+            score = -dist.logpdf(error)  #high = anomaly
+            scores.extend(score)
             labels.extend(label.numpy())
             categories.extend(category)
-    
-    return {"scores": np.array(scores), "labels": np.array(labels), "cats": np.array(categories), "flags": np.array(flags)}
+    return np.array(scores), np.array(labels), np.array(categories)

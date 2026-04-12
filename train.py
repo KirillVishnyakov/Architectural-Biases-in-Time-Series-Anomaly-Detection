@@ -4,7 +4,7 @@ import torch
 import copy
 import math
 from torch.utils.data import DataLoader
-import config as config
+import utils.config as config
 
 class EarlyStopping:
     def __init__(self, patience=15, min_delta=0.00005, mode='min'):

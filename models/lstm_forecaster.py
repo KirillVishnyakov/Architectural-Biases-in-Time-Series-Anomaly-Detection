@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch
 from typing import List
-import config as config
+import utils.config as config
 
 class LSTMBaseline(nn.Module):
     def __init__(self, hidden_size, l = 1, num_layers = 1, input_size = 17, output_size = 17):
