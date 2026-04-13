@@ -71,8 +71,23 @@ def transform_data(device, data, mode = 'train'):
         noisy_data = data + torch.randn_like(data, device = device) * 0.05
     return noisy_data
 
+
+def init_weights_xavier(module):
+    if isinstance(module, nn.Linear):
+        nn.init.xavier_uniform_(module.weight, gain=0.5)
+        if module.bias is not None:
+            nn.init.zeros_(module.bias)
+    elif isinstance(module, nn.LSTM):
+        for name, param in module.named_parameters():
+            if 'weight' in name:
+                nn.init.xavier_uniform_(param.data, gain=0.5)
+            elif 'bias' in name:
+                nn.init.zeros_(param.data)
+
+
 #TODO move magic parameters to a yaml file or smth
 def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs, shuffle = False):
+    model.apply(init_weights_xavier)
     train_loader = DataLoader(train_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True, shuffle = shuffle)
     test_loader = DataLoader(test_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True)
 

@@ -23,15 +23,7 @@ class positional_encoding(nn.Module):
         T = x.size(2) # should be across N
         x = x + self.pe[:, :T, :].unsqueeze(1)
         return self.dropout(x)
-        
-def init_weights_xavier(module):
-    """Apply Xavier initialization to linear layers and embeddings with small gain for stability."""
-    if isinstance(module, nn.Linear):
-        # Use smaller gain for better stability
-        nn.init.xavier_uniform_(module.weight, gain=0.5)
-        if module.bias is not None:
-            nn.init.zeros_(module.bias)
-        
+         
 class patch_module(nn.Module):
     def __init__(self, patch_length, stride):
         super().__init__()
@@ -151,8 +143,6 @@ class patch_transformer(nn.Module):
                 for _ in range(num_blocks)])
 
         self.linear_end = nn.Linear(n_patches * d_model, forecast_horizon, dtype=torch.float32)
-
-        self.apply(init_weights_xavier)
         
     def forward(self, x):
         #x is [B, L, M]
