@@ -86,7 +86,7 @@ def init_weights_xavier(module):
 
 
 #TODO move magic parameters to a yaml file or smth
-def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs, shuffle = False):
+def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, batch_size, num_epochs, shuffle = False, patience = 15, min_delta = 0.00005):
     model.apply(init_weights_xavier)
     train_loader = DataLoader(train_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True, shuffle = shuffle)
     test_loader = DataLoader(test_dataset, batch_size = batch_size, num_workers = 1, pin_memory = True, persistent_workers=True)
@@ -105,7 +105,7 @@ def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, bat
     ], lr=lr)
     
     loss_fn = nn.MSELoss()
-    earlyStopper = EarlyStopping()
+    earlyStopper = EarlyStopping(patience = 15, min_delta = 0.00005)
     total_steps = len(train_loader) * num_epochs
     warmup_steps = len(train_loader) // 2 #
     scheduler = WarmupCosineScheduler(
@@ -136,8 +136,6 @@ def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, bat
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             scheduler.step()
-            if (i+1) % (len(train_loader) // 2) == 0:
-                print(f"batch: {i+1} | train_loss: {loss:.4f}")
         eval_losses = []
         model.eval()
         with torch.no_grad():
