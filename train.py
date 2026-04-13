@@ -136,7 +136,7 @@ def fit_forecaster(device, model, exp_name, train_dataset, test_dataset, lr, bat
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             scheduler.step()
-            if (i+1) % 1024 == 0:
+            if (i+1) % (len(train_loader) // 2) == 0:
                 print(f"batch: {i+1} | train_loss: {loss:.4f}")
         eval_losses = []
         model.eval()
