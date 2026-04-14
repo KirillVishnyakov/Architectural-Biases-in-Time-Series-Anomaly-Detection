@@ -139,7 +139,7 @@ class patch_transformer(nn.Module):
         self.attention_bias = structured_attention(num_features = num_features, penalty = -1.0)
 
         self.blocks = nn.ModuleList([
-            attention_module(lookback_window = 100, d_model = 256, nhead = 8, dropout = 0.1, attention_bias = self.attention_bias) \
+            attention_module(lookback_window = 100, d_model = d_model, nhead = nhead, dropout = dropout, attention_bias = self.attention_bias) \
                 for _ in range(num_blocks)])
 
         self.linear_end = nn.Linear(n_patches * d_model, forecast_horizon, dtype=torch.float32)
