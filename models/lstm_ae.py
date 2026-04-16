@@ -26,10 +26,10 @@ class lstm_decoder(nn.Module):
         self.initial_cell_state = nn.Linear(self.latent_dim, self.num_features)
         self.lstm = nn.LSTM(self.latent_dim, self.num_features, num_layers = 1, batch_first = True)
     def forward(self, x):  # [B, latent_dim]
-        h0 = self.initial_state(x).unsqueeze(0) # [1, B, latent_dim] expected for pytorch lstm
-        c0 = self.initial_cell_state(x).unsqueeze(0) # [1, B, latent_dim] expected for pytorch lstm
+        h0 = self.initial_state(x).unsqueeze(0) # [1, B, num_features] expected for pytorch lstm
+        c0 = self.initial_cell_state(x).unsqueeze(0) # [1, B, num_features] expected for pytorch lstm
 
-        # [B, latent_dim] -> [B, 1, latent_dim] -> [B, self.lookback_window, latent_dim]
+        # [B, num_features] -> [B, 1, num_features] -> [B, self.lookback_window, num_features]
         input = x.unsqueeze(1).repeat(1, self.lookback_window, 1)
         out, _ = self.lstm(input, (h0, c0))
         return out
