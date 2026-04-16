@@ -31,7 +31,7 @@ class lstm_decoder(nn.Module):
         B, L, H = in_sequence.shape
 
         if self.training:
-            true_sequences = true.roll(shifts = 1, dim = 1)
+            true_sequences = true.roll(shifts = 1, dims = 1)
             true_sequences[:, 0:1, :] = torch.zeros((B, 1, self.num_features), device = in_sequence.device, dtype = in_sequence.dtype)
             decoder_input = torch.cat([true_sequences, in_sequence], dim = 2)
 
@@ -39,7 +39,7 @@ class lstm_decoder(nn.Module):
             reconstructed_window = self.linear(reconstructed_window)
 
         else:
-            
+
             reconstructed_window = [] 
             start_token = torch.zeros((B, 1, self.num_features), device = in_sequence.device, dtype = in_sequence.dtype) 
             decoder_input = torch.cat([start_token, in_sequence[:, 0: 1, :]], dim = 2) 
