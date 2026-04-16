@@ -14,7 +14,9 @@ class lstm_encoder(nn.Module):
     def forward(self, x): # [B, L, M]
         if x.dim() < 3: x = x.unsqueeze(0)
         out, (final_hidden_State, final_cell_state) = self.lstm(x)
-        return out, (final_hidden_State, final_cell_state), x #[B, L, latent_dim], [1, B, latent_dim], [1, B, latent_dim], true timestep
+
+        #[B, L, latent_dim], [1, B, latent_dim], [1, B, latent_dim], true timestep
+        return out, (final_hidden_State, final_cell_state), x 
 
 class lstm_decoder(nn.Module):
     def __init__(self, latent_dim, lookback_window = 50, num_features = 17):
@@ -27,26 +29,36 @@ class lstm_decoder(nn.Module):
         self.linear = nn.Linear(self.latent_dim, self.num_features)
 
     def forward(self, x):  # out, (final_hidden_State, final_cell_state)
+
+        #[B, L, latent_dim], ([1, B, latent_dim], [1, B, latent_dim]), [B, L, M]
         in_sequence, (h0, c0), true = x
         B, L, H = in_sequence.shape
 
         if self.training:
+            # true_sequences = [X, ..., L-1] are the true timesteps (used for teacher forcing)
             true_sequences = true.roll(shifts = 1, dims = 1)
+            # replace X by zeros, start token
             true_sequences[:, 0:1, :] = torch.zeros((B, 1, self.num_features), device = in_sequence.device, dtype = in_sequence.dtype)
+
+            """
+            in_sequence is what the encoder output at each time step [B, t, latent_dim]
+            stacking [B, L, latent_dim] with [0, ..., L-1] = [B, L, latent_dim, 0, ..., L-1]
+            means decoder input has information about previous true timestep and encoders representation of current time step
+            """
             decoder_input = torch.cat([true_sequences, in_sequence], dim = 2)
 
             reconstructed_window, _ = self.lstm(decoder_input, (h0, c0))
             reconstructed_window = self.linear(reconstructed_window)
 
+        # when doing inference, no access to true_sequences, therefore decoder input is cat[last_decoder_output, in_sequence@i]
+        # which cant be vectorized since we dont know decoder outputs in advance.
         else:
-
             reconstructed_window = [] 
             start_token = torch.zeros((B, 1, self.num_features), device = in_sequence.device, dtype = in_sequence.dtype) 
             decoder_input = torch.cat([start_token, in_sequence[:, 0: 1, :]], dim = 2) 
             out, (hn, cn) = self.lstm(decoder_input, (h0, c0)) 
             out = self.linear(out) 
             reconstructed_window.append(out) 
-
             for i in range(1, L): 
                 decoder_input = torch.cat([out, in_sequence[:, i: i + 1, :]], dim = 2) 
                 out, (hn, cn) = self.lstm(decoder_input, (hn, cn)) # out is [B, 1, H] 
