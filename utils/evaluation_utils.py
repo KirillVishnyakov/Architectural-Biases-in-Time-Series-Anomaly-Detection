@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from sklearn.neighbors import NearestNeighbors
 import utils.config as config
 
 def compute_residuals(device, model, dataset, batch_size = 1024):
@@ -12,7 +11,7 @@ def compute_residuals(device, model, dataset, batch_size = 1024):
         for X, y in loader:
             X, y = X.to(device), y.to(device)
             y_pred = model(X)
-            residual = (y - y_pred).reshape(y.shape[0], -1).cpu().numpy() # [B, H * M]
+            residual = (y - y_pred).reshape(y.shape[0], -1) # [B, H * M]
             residuals.append(residual) 
     """
     [ residuals
@@ -20,50 +19,66 @@ def compute_residuals(device, model, dataset, batch_size = 1024):
         [B, H * M] batch 2
     ]
     """
-    residuals = np.concatenate(residuals, axis=0) # [list of [B, H * M]] -> [stacked [N, H * M]]
+    residuals = torch.cat(residuals, dim=0) # [list of [B, H * M]] -> [stacked [N, H * M]]
     return residuals
+def nearest_neighbor_averaged_distance(R_test, R_train, R_train_norm, k=7):
+    # R_test: [B, D]
+    B, D = R_test.shape
+    # R_train_norm: [1, N]
+    N = R_train_norm.shape[1]
+    # R_train: [N, D]
+    """
+    computed as ||R_test - R_Train||
+    simplify: ||R_test - R_Train|| = ||R_test|| + ||R_Train|| - 2 * R_test @ R_Train.T
+    basically only need to compute ||R_Train|| once
+    """
+    R_test_norm = (R_test ** 2).sum(dim=1, keepdim = True).expand(B, N) # [B, 1] -> [B, N]
+    R_train_norm = R_train_norm.expand(B, N) # [B, N]
+    dists = R_train_norm + R_test_norm - 2 * R_test @ R_train.T
 
-def fit_knn(train_residuals, k):
-    nn = NearestNeighbors(
-        n_neighbors=k,
-        metric="euclidean",
-        algorithm="auto",
-        n_jobs=-1
-    )
-    nn.fit(train_residuals)
-    return nn
+    # get k nearest neighbors
+    knn_dists, _ = torch.topk(dists, k, largest=False)
 
-def nearest_neighbor_averaged_distance(R_test, nn):
-    dists, _ = nn.kneighbors(R_test)   # [B, k]
-    return (dists ** 2).mean(axis=1)
+    # average distance
+    return knn_dists.mean(dim=1)
 
-def custom_N2RE(device, model, train_dataset, val_dataset, batch_size = 1024):
+def custom_N2RE(device, model, train_dataset, val_dataset, batch_size=1024):
     print("computing residuals")
+
     train_residuals = compute_residuals(device, model, train_dataset, batch_size)
-    train_mean = np.mean(train_residuals, axis=0)
-    train_std  = np.std(train_residuals, axis=0) + 1e-8
-    train_residuals = (train_residuals - train_mean ) / train_std
-    print("Fitting knn")
-    nn = fit_knn(train_residuals, k = 5)
-    test_loader = DataLoader(val_dataset, batch_size = batch_size, shuffle=False, num_workers = 2, pin_memory = True)
+    train_mean = train_residuals.mean(dim=0)
+    train_std = train_residuals.std(dim=0) + 1e-8
+    train_residuals = torch.tensor((train_residuals - train_mean) / train_std, device=device, dtype=torch.float32)
+
+    R_train_norm = (train_residuals ** 2).sum(dim=1).unsqueeze(0)  # [1, N]
+
+    print("Beginning Inference")
+    test_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=2,
+        pin_memory=True,
+    )
     scores, labels, cats = [], [], []
     model.eval()
-    print("Beginning Inference")
     with torch.inference_mode():
         for X, y, label, category in test_loader:
             X, y = X.to(device), y.to(device)
+
             y_pred = model(X)
-            residual = (y - y_pred).reshape(y.shape[0], -1).cpu().numpy() # [B, H * M]
+            residual = (y - y_pred).reshape(y.shape[0], -1)  # [B, H * M] = [B, D]
             residual = (residual - train_mean) / train_std
 
-            distance = nearest_neighbor_averaged_distance(residual, nn)
-            scores.append(distance)
+            distance = nearest_neighbor_averaged_distance(residual, train_residuals, R_train_norm)
 
+            scores.append(distance.cpu().numpy())
             labels.extend(label.numpy())
             cats.extend(category)
-    scores = np.concatenate(scores) 
+
+    scores = np.concatenate(scores)
     return scores, np.array(labels), np.array(cats)
-            
+
 
 """
 def calculate_gauss_distribution(device, model, dataset, batch_size = 1024):
