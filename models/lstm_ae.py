@@ -1,5 +1,6 @@
 import torch.nn as nn
 from utils.RevIN import RevIN
+import torch
 
 class lstm_encoder(nn.Module):
     def __init__(self, num_features = 17, lookback_window = 50, latent_dim = 0.30):
@@ -12,8 +13,8 @@ class lstm_encoder(nn.Module):
     
     def forward(self, x): # [B, L, M]
         if x.dim() < 3: x = x.unsqueeze(0)
-        _, (h_n, _) = self.lstm(x) # [1, B, latent_dim]
-        return h_n.squeeze(0) #[B, latent_dim]
+        out, (final_hidden_State, final_cell_state) = self.lstm(x)
+        return out, (final_hidden_State, final_cell_state), x #[B, L, latent_dim], [1, B, latent_dim], [1, B, latent_dim], true timestep
 
 class lstm_decoder(nn.Module):
     def __init__(self, latent_dim, lookback_window = 50, num_features = 17):
@@ -21,18 +22,40 @@ class lstm_decoder(nn.Module):
         self.num_features = num_features
         self.lookback_window = lookback_window
         self.latent_dim = latent_dim
+        
+        self.lstm = nn.LSTM(self.num_features + self.latent_dim, self.latent_dim, num_layers = 1, batch_first = True)
+        self.linear = nn.Linear(self.latent_dim, self.num_features)
 
-        self.initial_state = nn.Linear(self.latent_dim, self.num_features)
-        self.initial_cell_state = nn.Linear(self.latent_dim, self.num_features)
-        self.lstm = nn.LSTM(self.latent_dim, self.num_features, num_layers = 1, batch_first = True)
-    def forward(self, x):  # [B, latent_dim]
-        h0 = self.initial_state(x).unsqueeze(0) # [1, B, num_features] expected for pytorch lstm
-        c0 = self.initial_cell_state(x).unsqueeze(0) # [1, B, num_features] expected for pytorch lstm
+    def forward(self, x):  # out, (final_hidden_State, final_cell_state)
+        in_sequence, (h0, c0), true = x
+        B, L, H = in_sequence.shape
 
-        # [B, num_features] -> [B, 1, num_features] -> [B, self.lookback_window, num_features]
-        input = x.unsqueeze(1).repeat(1, self.lookback_window, 1)
-        out, _ = self.lstm(input, (h0, c0))
-        return out
+        if self.training:
+            true_sequences = true.roll(shifts = 1, dim = 1)
+            true_sequences[:, 0:1, :] = torch.zeros((B, 1, self.num_features), device = in_sequence.device, dtype = in_sequence.dtype)
+            decoder_input = torch.cat([true_sequences, in_sequence], dim = 2)
+
+            reconstructed_window, _ = self.lstm(decoder_input, (h0, c0))
+            reconstructed_window = self.linear(reconstructed_window)
+
+        else:
+            
+            reconstructed_window = [] 
+            start_token = torch.zeros((B, 1, self.num_features), device = in_sequence.device, dtype = in_sequence.dtype) 
+            decoder_input = torch.cat([start_token, in_sequence[:, 0: 1, :]], dim = 2) 
+            out, (hn, cn) = self.lstm(decoder_input, (h0, c0)) 
+            out = self.linear(out) 
+            reconstructed_window.append(out) 
+
+            for i in range(1, L): 
+                decoder_input = torch.cat([out, in_sequence[:, i: i + 1, :]], dim = 2) 
+                out, (hn, cn) = self.lstm(decoder_input, (hn, cn)) # out is [B, 1, H] 
+                out = self.linear(out) # out is [B, 1, M] 
+                reconstructed_window.append(out) 
+
+            reconstructed_window = torch.cat(reconstructed_window, dim=1) 
+
+        return reconstructed_window
 
 class lstm_ae(nn.Module):
     def __init__(self, num_features = 17, lookback_window = 50, embedding_dim_ratio = 0.30):
