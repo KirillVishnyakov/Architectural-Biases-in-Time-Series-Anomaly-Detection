@@ -41,8 +41,7 @@ def nearest_neighbor_averaged_distance(R_test, R_train, R_train_norm, k=7):
 
     # average distance
     return knn_dists.mean(dim=1)
-
-def custom_N2RE(device, model, train_dataset, val_dataset, batch_size=1024):
+def fit_custom_N2RE(device, model, train_dataset, batch_size = 1024):
     print("computing residuals")
 
     train_residuals = compute_residuals(device, model, train_dataset, batch_size)
@@ -51,10 +50,12 @@ def custom_N2RE(device, model, train_dataset, val_dataset, batch_size=1024):
     train_residuals = torch.tensor((train_residuals - train_mean) / train_std, device=device, dtype=torch.float32)
 
     R_train_norm = (train_residuals ** 2).sum(dim=1).unsqueeze(0)  # [1, N]
+    return train_residuals, train_mean, train_std, R_train_norm
 
+def score_custom_N2RE(device, model, dataset, train_residuals, train_mean, train_std, R_train_norm, batch_size = 1024):
     print("Beginning Inference")
     test_loader = DataLoader(
-        val_dataset,
+        dataset,
         batch_size=batch_size,
         shuffle=False,
         num_workers=2,
