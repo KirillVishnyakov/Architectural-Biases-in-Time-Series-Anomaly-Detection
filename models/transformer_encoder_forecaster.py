@@ -45,18 +45,24 @@ class patch_module(nn.Module):
         """
         return x
 class structured_attention(nn.Module):
-    def __init__(self, feature_groups, num_features = 17, penalty = -2.0):
+    def __init__(self, num_features = 17, penalty = -2.0):
         super().__init__()
         self.attn_bias = nn.Parameter(torch.zeros(num_features, num_features))
+
+        command_idx = [0, 1, 5, 6]
+        environmental_stimuli_idx = [2, 3, 4]
+        system_triggers_dx = command_idx + environmental_stimuli_idx
+
+        system_response_idx = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
         with torch.no_grad():
             # commands and environment stimulies shouldnt attend to system responses
-            for i in feature_groups["commands"] + feature_groups["environmental_stimuli"]:
-                for j in feature_groups["system_responses"]:
-                    self.attn_bias[i, j] = -1e6
+            for i in system_triggers_dx:
+                for j in system_response_idx:
+                    self.attn_bias[i, j] = penalty
             
             # commands and environmental stimulies also shouldnt interact much with eachother
-            for i in feature_groups["commands"]:
-                for j in feature_groups["environmental_stimuli"]:
+            for i in command_idx:
+                for j in environmental_stimuli_idx:
                     self.attn_bias[i, j] = penalty
                     self.attn_bias[j, i] = penalty
             
@@ -130,22 +136,12 @@ class patch_transformer(nn.Module):
         self.pos_embed = positional_encoding(d_model, dropout = dropout)
         self.feature_embed = nn.Parameter(torch.randn(1, num_features, 1, d_model) * 0.02)
 
-        self.feature_groups = {
-            "commands": [0, 1, 5, 6],
-            "environmental_stimuli": [2, 3, 4],
-            "system_responses": [7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-        }
         self.attention_biases = nn.ModuleList([
-            structured_attention(feature_groups = self.feature_groups, num_features = num_features, penalty = -1.0) for _ in range(num_blocks)])
+            structured_attention(num_features = num_features, penalty = -1.0) for _ in range(num_blocks)])
         self.blocks = nn.ModuleList([
-            attention_module(lookback_window = lookback_window, d_model = d_model, nhead = nhead, dropout = dropout, attention_bias = self.self.attention_biases[i]) \
+            attention_module(lookback_window = lookback_window, d_model = d_model, nhead = nhead, dropout = dropout, attention_bias = self.attention_biases[i]) \
             for i in range(num_blocks)])
-        
-        #one Linear layer for each feature group
-        self.group_heads = nn.ModuleDict({
-            feature_group: nn.Linear(n_patches * d_model, forecast_horizon, dtype=torch.float32)
-            for feature_group in self.feature_groups
-        })
+        self.linear_end = nn.Linear(n_patches * d_model, forecast_horizon, dtype=torch.float32)
         
     def forward(self, x):
         #B, L, M = x.shape
@@ -163,13 +159,6 @@ class patch_transformer(nn.Module):
             x = block(x) # [B, M, N, D] 
         
         x = x.flatten(2) # [B, M, N * D]
-
-        out = torch.empty(B, M, self.forecast_horizon, device=x.device) # [B, M, horizon]
-        # for each feature group in self.feature_groups, pass those features through their respective linear layers
-        for feature_group, indices in self.feature_groups.items():
-            sub_x = x[:, indices, :] # [B, M[group], N * D]
-            sub_x_out = self.group_heads[feature_group](sub_x) # [B, M[group], horizon]
-            out[:, indices, :] = sub_x_out # put [B, M[group], H] into out
-
+        x = self.linear_end(x) # [B, M, horizon]
         x = torch.transpose(x, 1, 2) # [B, horizon, M] to match input [B, L, M]
         return self.revin_layer(x, 'denorm')
