@@ -33,7 +33,7 @@ def nearest_neighbor_averaged_distance(R_test, R_train, R_train_norm, k=7):
     basically only need to compute ||R_Train|| once
     """
     R_test_norm = (R_test ** 2).sum(dim=1, keepdim = True).expand(B, N) # [B, 1] -> [B, N]
-    R_train_norm = R_train_norm.expand(B, N) # [B, N]
+    R_train_norm = R_train_norm.expand(B, N) # [1, N] -> [B, N]
     dists = R_train_norm + R_test_norm - 2 * R_test @ R_train.T
 
     # get k nearest neighbors
@@ -41,6 +41,7 @@ def nearest_neighbor_averaged_distance(R_test, R_train, R_train_norm, k=7):
 
     # average distance
     return knn_dists.mean(dim=1)
+
 def fit_custom_N2RE(device, model, train_dataset, batch_size = 1024):
     print("computing residuals")
 

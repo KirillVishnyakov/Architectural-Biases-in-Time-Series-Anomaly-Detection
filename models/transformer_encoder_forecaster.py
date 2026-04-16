@@ -44,39 +44,12 @@ class patch_module(nn.Module):
         L -> [N, P] where N is num of patches, and P is patch length
         """
         return x
-class structured_attention(nn.Module):
-    def __init__(self, num_features = 17, penalty = -2.0):
-        super().__init__()
-        self.attn_bias = nn.Parameter(torch.zeros(num_features, num_features))
-
-        command_idx = [0, 1, 5, 6]
-        environmental_stimuli_idx = [2, 3, 4]
-        system_triggers_dx = command_idx + environmental_stimuli_idx
-
-        system_response_idx = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-        with torch.no_grad():
-            # commands and environment stimulies shouldnt attend to system responses
-            for i in system_triggers_dx:
-                for j in system_response_idx:
-                    self.attn_bias[i, j] = penalty
-            
-            # commands and environmental stimulies also shouldnt interact much with eachother
-            for i in command_idx:
-                for j in environmental_stimuli_idx:
-                    self.attn_bias[i, j] = penalty
-                    self.attn_bias[j, i] = penalty
-            
-            # model can still learn to change how each feature attends to another.
-    def forward(self):
-        return self.attn_bias
 
 class attention_module(nn.Module):
-    def __init__(self, lookback_window = 100, d_model = 256, nhead = 8, dropout = 0.1, attention_bias = None):
+    def __init__(self, lookback_window = 100, d_model = 256, nhead = 8, dropout = 0.1):
         super().__init__()
         self.lookback_window, self.d_model, self.nhead, self.dropout = \
             lookback_window, d_model, nhead, dropout
-
-        self.attention_bias = attention_bias
         
         self.feature_attention = self.encoder_template()
         self.patch_attention = self.encoder_template()
@@ -105,7 +78,7 @@ class attention_module(nn.Module):
 
         x = x.permute(0, 2, 1, 3) # [B, N, M, D]
         x = x.reshape(B * N, M, D) # [B * N, M, D]
-        x = self.feature_attention(x, mask = self.attention_bias()) # [B * N, M, D]
+        x = self.feature_attention(x) # [B * N, M, D]
         x = x.reshape(B, N, M, D)
         x = x.permute(0, 2, 1, 3) # [B, M, N, D]
 
@@ -119,6 +92,8 @@ class attention_module(nn.Module):
         each N token now has been cross attended with each other N.
         """
         return x
+    
+    
 
 class patch_transformer(nn.Module):
     def __init__(self, lookback_window = 100, forecast_horizon = 4, d_model = 256, nhead = 8, dropout = 0.1, num_features = 17, num_blocks = 3):
@@ -135,11 +110,8 @@ class patch_transformer(nn.Module):
         self.input_proj = nn.Linear(self.patch_length, d_model, dtype=torch.float32)
         self.pos_embed = positional_encoding(d_model, dropout = dropout)
         self.feature_embed = nn.Parameter(torch.randn(1, num_features, 1, d_model) * 0.02)
-
-        self.attention_biases = nn.ModuleList([
-            structured_attention(num_features = num_features, penalty = -1.0) for _ in range(num_blocks)])
         self.blocks = nn.ModuleList([
-            attention_module(lookback_window = lookback_window, d_model = d_model, nhead = nhead, dropout = dropout, attention_bias = self.attention_biases[i]) \
+            attention_module(lookback_window = lookback_window, d_model = d_model, nhead = nhead, dropout = dropout) \
             for i in range(num_blocks)])
         self.linear_end = nn.Linear(n_patches * d_model, forecast_horizon, dtype=torch.float32)
         
