@@ -6,8 +6,30 @@ from sklearn.preprocessing import RobustScaler
 import utils.config as config
 
 
-# Stride of 1 is implicitly implied. Window size can be set.
 class forecasting_Dataset(data.Dataset):
+    """ Configures the dataset for forecasting models from the raw .csv file.
+    Loads chunks from the .csv file, stores dataset information into fields.
+    Remove median and scale according to IQR, and clip.
+
+    Args
+    -----------
+    device : torch.device
+        models device
+    window_size : int
+        how much of the dataset history is seen for each prediction
+    horizon : int, how many timesteps to predict
+    scaler : sklearn.preprocessing.data.RobustScaler
+        None for training dataset, 
+        must pass the scaler used for corresponding training dataset when using test/val datasets
+    start : int, beginning slice of the dataset to load
+    end : int, ending slice of the dataset to load
+    train : bool, whether to load a training dataset or test/val
+        
+    Example
+    --------
+    https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.Dataset
+    """
+
     def __init__(self, device, window_size, horizon = 1, scaler = None, start = 0, end = 90000, train = True):
         self.horizon = horizon
         self.train = train
@@ -33,6 +55,30 @@ class forecasting_Dataset(data.Dataset):
         return len(self.normalized_dataset) - self.window_size - self.horizon
 
     def __getitem__(self, idx):
+        """ Configures indexing mechanism for the forecasting dataset
+        
+        Args
+        -----------
+        idx : int, starting index of the window
+            
+        Returns
+        -------------
+        if train:
+            X : torch.tensor (seq_len, feature) -> (L, M)
+                the full window history for the current idx
+            y : torch.tensor (horizon, feature) -> (horizon, M)
+                the ground truth horizon window to compare the predicted X with
+        if test:
+            X : torch.tensor (seq_len, feature) -> (L, M)
+                the full window history for the current idx
+            y : torch.tensor (horizon, feature) -> (horizon, M)
+                the ground truth horizon window to compare the predicted X with
+            label : int
+                1 if any timestep in the horizon is anomalous, else 0
+            category : int
+                Category of the first timestep, assuming anomalies are contiguous 
+                which is true for this dataset 
+        """
         X = self.normalized_dataset[idx : idx + self.window_size]
         y = self.normalized_dataset[idx + self.window_size: idx + self.window_size + self.horizon]
 
@@ -44,6 +90,26 @@ class forecasting_Dataset(data.Dataset):
             return X, y, label, category
 
 class AE_Dataset(data.Dataset):
+    """ Configures the dataset for autoencoder models from the raw .csv file.
+    Loads chunks from the .csv file, stores dataset information into fields.
+    Remove median and scale according to IQR, and clip.
+
+    Args
+    -----------
+    device : torch.device, models device
+    lookback_window : int, how much of the dataset history is seen for each prediction
+    scaler : sklearn.preprocessing.data.RobustScaler
+        None for training dataset, 
+        must pass the scaler used for corresponding training dataset when instantiating a test/val dataset
+    start : int, beginning slice of the dataset to load
+    end : int, ending slice of the dataset to load
+    train : bool, whether to load a training dataset or test/val
+
+    Example
+    --------
+    https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.Dataset
+    """
+
     def __init__(self, device, lookback_window, scaler = None, start = 0, end = 90000, train = True):
         self.device = device
         self.lookback_window = lookback_window
@@ -72,6 +138,30 @@ class AE_Dataset(data.Dataset):
         return len(self.normalized_dataset) - self.lookback_window
 
     def __getitem__(self, idx):
+        """ Configures indexing mechanism for the autoencoder dataset
+        
+        Args
+        -----------
+        idx : int, starting index of the window
+        
+        Returns
+        -------------
+        if train:
+            X : torch.tensor (seq_len, feature) -> (L, M)
+                the full window history for the current idx
+            y : torch.tensor (horizon, feature) -> (L, M)
+                window that is being reconstructed, a clone of X
+        if test:
+            X : torch.tensor (seq_len, feature) -> (L, M)
+                the full window history for the current idx
+            y : torch.tensor (seq_len, feature) -> (L, M)
+                window that is being reconstructed, a clone of X
+            label : int
+                1 if any timestep in the reconstruction is anomalous, else 0
+            category : int
+                Category of the first timestep, assuming anomalies are contiguous 
+                which is true for this dataset 
+        """
         X = self.normalized_dataset[idx : idx + self.lookback_window]
         y = X.clone()
 
