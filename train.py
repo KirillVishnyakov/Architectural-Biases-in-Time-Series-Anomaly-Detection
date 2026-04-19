@@ -237,6 +237,9 @@ def fit(device, model, exp_name, train_dataset, test_dataset,
     
     for epoch in range(num_epochs):
         model.train()
+        if hasattr(model, 'decoder'):
+            model.decoder.current_epoch = epoch
+            model.decoder.total_epochs = num_epochs
         train_losses = []
         
         for i, (X, y) in enumerate(train_loader):

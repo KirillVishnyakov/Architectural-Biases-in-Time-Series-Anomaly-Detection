@@ -1,6 +1,7 @@
 import torch.nn as nn
 from utils.RevIN import RevIN
 import torch
+import random
 
 class lstm_encoder(nn.Module):
     """ Implements the encoder module of the lstm autoencoder
@@ -11,21 +12,20 @@ class lstm_encoder(nn.Module):
         num of features
     lookback_window: int
         size of the input window the model sees (contiguous)
-    embedding_dim_ratio: float
-        % of the input (num_features) dimension to keep or expand into the latent dimension
+    latent_dim: int
+        latent decoder dimension
     
     Example
     ---------
-    >>> model = lstm_ae(17, lookback_window = 256, embedding_dim_ratio = 3.0)
+    >>> model = lstm_ae(17, lookback_window = 256, latent_dim = 5)
     >>> model_encoder = model.encoder
     """
     
-    def __init__(self, num_features = 17, lookback_window = 50, latent_dim = 0.30):
+    def __init__(self, num_features = 17, lookback_window = 50, latent_dim = 17):
         super(lstm_encoder, self).__init__()
         self.num_features = num_features
         self.lookback_window = lookback_window
         self.latent_dim = latent_dim
-
         self.lstm = nn.LSTM(self.num_features, self.latent_dim, num_layers = 1, batch_first = True)
     
     def forward(self, x):
@@ -79,7 +79,9 @@ class lstm_decoder(nn.Module):
         self.num_features = num_features
         self.lookback_window = lookback_window
         self.latent_dim = latent_dim
-        
+        self.total_epochs = 0
+        self.current_epoch = 0
+
         self.lstm = nn.LSTM(self.num_features + self.latent_dim, self.latent_dim, num_layers = 1, batch_first = True)
         self.linear = nn.Linear(self.latent_dim, self.num_features)
 
@@ -112,8 +114,9 @@ class lstm_decoder(nn.Module):
         """
         in_sequence, (h0, c0), true = x
         B, L, H = in_sequence.shape
-
-        if self.training:
+        teacher_forcing_prob = max(0.0, 1.0 - (self.current_epoch / self.total_epochs))
+        
+        if self.training and (teacher_forcing_prob > random.random()):
             # true_sequences = [X, ..., L-1] are the true timesteps (used for teacher forcing)
             true_sequences = true.roll(shifts = 1, dims = 1)
             # replace X by zeros, start token
