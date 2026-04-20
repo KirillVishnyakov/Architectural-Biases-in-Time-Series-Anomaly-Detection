@@ -1,7 +1,37 @@
 import numpy as np
 def evaluation_metrics_helper(scores, labels, cats, window):
+    """ computes evaluation metrics for anomaly detection using smoothed residual scores
+    
+    Args
+    ---------
+    scores : np.ndarray (N,)
+        raw anomaly scores
+    labels : np.ndarray (N,)
+        binary ground truth labels
+    cats : np.ndarray (N,)
+        categorical anomaly labels
+    window : int
+        smoothing window size for moving average over scores
+
+    Returns
+    ---------
+    tuple[float, float, dict]:
+        F1 score, precision, and dictionary of per-category metrics.
+    Example
+    ---------
+    >>> scores = np.random.rand(1000)
+    >>> labels = np.zeros(1000)
+    >>> labels[900:] = 1
+    >>> cats = np.zeros(1000)
+    >>> cats[900:950] = 1
+    >>> cats[950:] = 2
+    >>> F1, precision, cat_metrics = \
+    ...     evaluation_metrics_helper(scores, labels, cats, window=50)
+    >>> F1
+    """
     window = int(window)
-    current_score = np.convolve(scores, np.ones(window) / window, mode='same')
+    kernel = np.ones(window) / window # [len(window),]
+    current_score = np.convolve(scores, kernel, mode='same')
     cat_dict = {}
     normal_mask = cats == 0
     threshold = np.percentile(current_score[normal_mask], 100 - 1.5)

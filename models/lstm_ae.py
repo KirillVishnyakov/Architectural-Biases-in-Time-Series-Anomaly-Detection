@@ -79,7 +79,7 @@ class lstm_decoder(nn.Module):
         self.num_features = num_features
         self.lookback_window = lookback_window
         self.latent_dim = latent_dim
-        self.total_epochs = 0
+        self.total_epochs = 1 # init to 1 to avoid div by zero bug during inferene
         self.current_epoch = 0
 
         self.lstm = nn.LSTM(self.num_features + self.latent_dim, self.latent_dim, num_layers = 1, batch_first = True)

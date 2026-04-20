@@ -159,7 +159,7 @@ def score_custom_N2RE(
     batch_size = 1024
 ):
     """ minimal implementation of Neighbor 2 REsiduals computation
-    original idea from (https://dl.acm.org/doi/10.1145/3477314.3506990) 
+    original idea from (https://www.kaggle.com/code/praxitelisk/anomaly-detection-techniques-summary/code#kNN---Distance-Based-Methods) 
 
     Args
     ---------
