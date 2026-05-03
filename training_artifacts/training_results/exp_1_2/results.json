@@ -1,0 +1,29 @@
+[
+    {
+        "F1": 0.0,
+        "precision": 0.0,
+        "threshold_percentile": 97.0,
+        "smoothing_window": 150,
+        "recalls_per_anomaly_cat": {
+            "FPR (0.0)": 0.03
+        }
+    },
+    {
+        "F1": 0.0,
+        "precision": 0.0,
+        "threshold_percentile": 97.0,
+        "smoothing_window": 225,
+        "recalls_per_anomaly_cat": {
+            "FPR (0.0)": 0.03
+        }
+    },
+    {
+        "F1": 0.0,
+        "precision": 0.0,
+        "threshold_percentile": 97.0,
+        "smoothing_window": 300,
+        "recalls_per_anomaly_cat": {
+            "FPR (0.0)": 0.03
+        }
+    }
+]
