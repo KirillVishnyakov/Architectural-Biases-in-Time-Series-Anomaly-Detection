@@ -54,10 +54,11 @@ def nearest_neighbor_averaged_distance(R_test, R_train, R_train_norm, k=7):
     return knn_dists.mean(dim=1)
 
 class KNNResidualScorer:
-    def __init__(self, device, n_components=0.95, k=4):
+    def __init__(self, device, n_components=0.95, k=4, chunk_size = 6000):
         self.device = device
         self.n_components = n_components
         self.k = k
+        self.chunk_size = chunk_size
 
     def name(self):
         return f"knn_pca={self.n_components}_k={self.k}"
@@ -83,7 +84,7 @@ class KNNResidualScorer:
         self.pca = pca
         return self
     
-    def score(self, val_residuals, chunk_size = 1024):
+    def score(self, val_residuals):
         val_residuals = val_residuals.to(self.device)
 
         residuals = (val_residuals - self.train_mean.to(self.device)) / self.train_std.to(self.device)
@@ -94,9 +95,9 @@ class KNNResidualScorer:
 
         scores = torch.zeros(len(residuals), device=self.device, dtype=torch.float32)
 
-        for chunk in range(0, len(residuals), chunk_size):
-            scores[chunk: chunk + chunk_size] = nearest_neighbor_averaged_distance(
-                residuals[chunk: chunk + chunk_size],
+        for chunk in range(0, len(residuals), self.chunk_size):
+            scores[chunk: chunk + self.chunk_size] = nearest_neighbor_averaged_distance(
+                residuals[chunk: chunk + self.chunk_size],
                 self.train_residuals_n,
                 self.R_train_norm,
                 self.k
