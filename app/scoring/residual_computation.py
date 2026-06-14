@@ -55,9 +55,12 @@ def compute_residuals(device, model, dataset, batch_size = 1024, train = True):
                 residuals.append(residual) 
                 labels.append(label)
                 cats.append(cat)
+
+        
         # Concatenate all batches:
         # [[B, D], [B, D], ...] -> [N, D], where D is either H*M or L*M 
         residuals = torch.cat(residuals, dim=0)      
-        labels = torch.cat(labels, dim=0)   
-        cats = torch.cat(cats, dim=0)   
+        if labels:
+            labels = torch.cat(labels, dim=0)   
+            cats = torch.cat(cats, dim=0)   
     return residuals, labels, cats

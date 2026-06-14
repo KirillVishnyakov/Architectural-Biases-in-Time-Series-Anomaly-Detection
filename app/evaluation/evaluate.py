@@ -1,4 +1,3 @@
-import numpy as np
 import json
 from app.scoring.residual_computation import compute_residuals
 from app.evaluation.threshold_search import search_thresholds
@@ -14,13 +13,6 @@ def evaluate_model(device, model, train_dataset, val_dataset, name, cfg, scorers
     for scorer in scorers:
         scorer = scorer.fit(train_residuals)
         scores = scorer.score(val_residuals).cpu().numpy()
-        np.savez_compressed(
-            path / f"{scorer.name()}_residuals_scores_labels_categories.npz",
-            residuals = val_residuals.cpu().numpy(),
-            scores = scores,
-            labels = labels.cpu().numpy(),
-            categories = cats.cpu().numpy()
-        )
         top_results = search_thresholds(scores, labels.cpu().numpy(), cats.cpu().numpy())
         for r in top_results:
             r["name"] = scorer.name()

@@ -1,16 +1,9 @@
 import torch
-import os
-import numpy as np
-import json
-import gc
 
 from app.utils.config import Config
-from app.utils.evaluation_utils import evaluation_metrics_helper
 from app.models.transformer_encoder_forecaster import patch_transformer
 from app.data.dataset import forecasting_Dataset
 from app.scoring.residual_computation import compute_residuals
-from app.scoring.knn_scorer import fit_custom_N2RE
-from app.scoring.knn_scorer import score_custom_N2RE
 from app.scoring.knn_scorer import KNNResidualScorer
 
 
@@ -18,12 +11,12 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     cfg = Config(
-        "c:\\Architectural-Biases-in-Time-Series-Anomaly-Detection", 
+        "G:/My Drive/Architectural-Biases-in-Time-Series-Anomaly-Detection", 
+        "app",
+        "data",
+        "training_artifacts",
         "saved_model_weights",
-        "training", 
-        "training_results",
-        "data.csv", 
-        "training_checkpoints"
+        "training_results"
     )
     transformer_model = patch_transformer(
         lookback_window = 256, 
@@ -63,3 +56,4 @@ if __name__ == "__main__":
     knn_module = knn_module.fit(train_residuals)
     scores = knn_module.score(val_residuals)
     print(scores.shape)
+    print(sum(p.numel() for p in transformer_model.parameters()))
