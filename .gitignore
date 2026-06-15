@@ -2,4 +2,4 @@ __pycache__/
 *.pyc
 *.pyo
 .tmp.driveupload/
-*.csMv
+*.csv
